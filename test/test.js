@@ -4353,7 +4353,7 @@ describe("Cadoose Schema Wrapper", () => {
 
         });
 
-        describe.only("Mongoose-like API extensions", () => {
+        describe("Mongoose-like API extensions", () => {
 
             describe("#Model.create", () => {
 
