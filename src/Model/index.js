@@ -80,6 +80,13 @@ export class Model{
     _schema:ExtendedSchemaDescription = {}
     Model:any = null
 
+    static async registerAndSync(name, schema){
+        const MyModel = await require("../index").MakeCadoose().loadSchema(name, schema);
+        await MyModel.syncDBAsync();
+        
+        return MyModel;
+    }
+
     constructor(expressCassandraModel:expressCassandraModelType, schemaSchema:Schema){
         
         if(expressCassandraModel){

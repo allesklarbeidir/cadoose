@@ -1,11 +1,11 @@
 // @flow
-import {MakeCadoose, CADOOSE} from "../src";
-import Map from "../src/SpecialTypes/Map";
-import Schema from "../src/Schema";
+import {MakeCadoose, CADOOSE, Model as CadooseModel, Schema, SpecialTypes} from "../src";
 import chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 chai.use(chaiAsPromised);
 const expect = chai.expect;
+
+const Map = SpecialTypes.Map;
 
 const cassandra = MakeCadoose({
         contactPoints: ["127.0.0.1"],
@@ -19,25 +19,6 @@ const cassandra = MakeCadoose({
     },
     migration: 'safe',
 });
-
-const registerAndSync = async (name, schema) => {
-
-    const MyModel = await cassandra.loadSchema(name, schema);
-
-    await new Promise((resolve, reject) => {
-        MyModel.syncDB((err, res) => {
-            if(err){
-                reject(err);
-            }
-            else{
-                resolve(res);
-            }
-        });
-    });
-
-    return MyModel;
-}
-
 
 describe("Cadoose Schema Wrapper", () => {
 
@@ -84,7 +65,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 }
                 
-                const Model = await registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync("primitives", s);
         
                 const a = new Model({
                     string: "string",
@@ -121,7 +102,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 }
                 
-                const Model = await registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync("primitives", s);
         
                 const a = new Model({
                     string: "string",
@@ -157,7 +138,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 }, {});
                 
-                const Model = await registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync("primitives", s);
         
                 const a = new Model({
                     string: "string",
@@ -190,7 +171,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 });
 
-                const Model = await registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync("primitives", s);
 
                 const a = new Model();
                 await a.saveAsync();
@@ -222,7 +203,7 @@ describe("Cadoose Schema Wrapper", () => {
                     });
                     const columnNames = ["string"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -265,7 +246,7 @@ describe("Cadoose Schema Wrapper", () => {
                     });
                     const columnNames = ["string"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -310,7 +291,7 @@ describe("Cadoose Schema Wrapper", () => {
                     });
                     const columnNames = ["string","number"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -353,7 +334,7 @@ describe("Cadoose Schema Wrapper", () => {
                     });
                     const columnNames = ["string","number"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -399,7 +380,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -446,7 +427,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -500,7 +481,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number", "bool"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -551,7 +532,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number", "bool"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -609,7 +590,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesPrimary = ["string", "number"];
                     const columnNamesClustering = ["bool", "some_prop"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -664,7 +645,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesPrimary = ["string", "number"];
                     const columnNamesClustering = ["bool", "some_prop"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -713,7 +694,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -778,7 +759,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number","some_prop"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -840,7 +821,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -904,7 +885,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number","some_prop"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -971,7 +952,7 @@ describe("Cadoose Schema Wrapper", () => {
                     const columnNamesCKey = ["number"];
                     const columnNamesIndex = ["number","some_prop"];
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1038,7 +1019,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     expect(a.saveAsync()).to.eventually.be.rejectedWith(/Required Field/);
@@ -1066,7 +1047,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         bool: true
@@ -1097,7 +1078,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         bool: true
@@ -1128,7 +1109,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         bool: true
@@ -1159,7 +1140,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         bool: true
@@ -1191,7 +1172,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1219,7 +1200,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "MUHAHAHA-NOT:MATCHING"
@@ -1251,7 +1232,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1279,7 +1260,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         number: 200
@@ -1311,7 +1292,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1339,7 +1320,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1367,7 +1348,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1397,7 +1378,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1425,7 +1406,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1453,7 +1434,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1483,7 +1464,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1511,7 +1492,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1539,7 +1520,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1569,7 +1550,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1597,7 +1578,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1625,7 +1606,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1659,7 +1640,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1697,7 +1678,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1734,7 +1715,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1771,7 +1752,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1809,7 +1790,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1847,7 +1828,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1885,7 +1866,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1932,7 +1913,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     }
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1966,7 +1947,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2003,7 +1984,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2042,7 +2023,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2080,7 +2061,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2118,7 +2099,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2156,7 +2137,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2193,7 +2174,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "SOME-DEFAULT-STRING-TO-LOWER-CASE"
@@ -2225,7 +2206,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "some-default-string-to-upper-case"
@@ -2257,7 +2238,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
     
-                    const Model = await registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
     
                     const a = new Model({
                         string: "   some-default-string   "
@@ -2291,7 +2272,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("date_type", s);
+                    const Model = await CadooseModel.registerAndSync("date_type", s);
 
                     const d = new Date(Date.now() - 24*60*60*1000);
 
@@ -2324,7 +2305,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("buffer_type", s);
+                    const Model = await CadooseModel.registerAndSync("buffer_type", s);
 
                     const b = new Buffer("some suuuuper long string buffer read from some file");
 
@@ -2358,7 +2339,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("array_list_type", s);
+                    const Model = await CadooseModel.registerAndSync("array_list_type", s);
 
                     const l = ["item1", "item2", "item3", "item4", "item5"];
 
@@ -2391,7 +2372,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync("set_type", s);
 
                     const l = new Set(["item1", "item2", "item3", "item4", "item5"]);
                     const larr = [...l];
@@ -2423,7 +2404,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync("set_type", s);
 
                     const l = new Set(["item1", "item2", "item3", "item4", "item5"]);
                     const larr = [...l];
@@ -2454,7 +2435,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync("set_type", s);
 
                     const l = ["item1", "item2", "item3", "item4", "item5"];
 
@@ -2485,7 +2466,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync("set_type", s);
 
                     const l = ["item1", "item2", "item3", "item4", "item5"];
 
@@ -2519,7 +2500,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("map_type_text_text", s);
+                    const Model = await CadooseModel.registerAndSync("map_type_text_text", s);
 
                     const map = new Map(String,String).set({
                         prop1: "val1",
@@ -2555,7 +2536,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("map_type_text_float", s);
+                    const Model = await CadooseModel.registerAndSync("map_type_text_float", s);
 
                     const map = new Map(String, Number).set({
                         prop1: 100,
@@ -2591,7 +2572,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("map_type_text_bool", s);
+                    const Model = await CadooseModel.registerAndSync("map_type_text_bool", s);
 
                     const map = new Map(String, Boolean).set({
                         prop1: true,
@@ -2627,7 +2608,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("map_type_text_date", s);
+                    const Model = await CadooseModel.registerAndSync("map_type_text_date", s);
 
                     let d1 = new Date(), d2 = new Date(Date.now() - 24*60*60*1000), d3 = new Date(Date.now() + 24*60*60*1000);
 
@@ -2665,7 +2646,7 @@ describe("Cadoose Schema Wrapper", () => {
                         }
                     });
 
-                    const Model = await registerAndSync("map_type_text_blob", s);
+                    const Model = await CadooseModel.registerAndSync("map_type_text_blob", s);
 
                     let b1 = new Buffer("b1"), b2 = new Buffer("b2"), b3 = new Buffer("b3");
 
@@ -2715,7 +2696,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 });
 
-                const Model = await registerAndSync("nested_props1", s);
+                const Model = await CadooseModel.registerAndSync("nested_props1", s);
 
                 const a = new Model({
                     info: {
@@ -2769,7 +2750,7 @@ describe("Cadoose Schema Wrapper", () => {
                 });
                 const columnNames = ["info.name", "info.surname"];
 
-                const Model = await registerAndSync("nested_props2", s);
+                const Model = await CadooseModel.registerAndSync("nested_props2", s);
 
                 const a = new Model({
                     info: {
@@ -2845,7 +2826,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesPK = ["info.name", "info.surname"];
                 const columnNamesCK = ["info.some_super_prop"];
 
-                const Model = await registerAndSync("nested_props3", s);
+                const Model = await CadooseModel.registerAndSync("nested_props3", s);
 
                 const a = new Model({
                     info: {
@@ -2935,7 +2916,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesCK = ["info.some_super_prop"];
                 const columnNamesIDX = ["infosome_indexed_prop"];
 
-                const Model = await registerAndSync("nested_props4", s);
+                const Model = await CadooseModel.registerAndSync("nested_props4", s);
 
                 const a = new Model({
                     info: {
@@ -3039,7 +3020,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 });
 
-                const Model = await registerAndSync("nested_props5", s);
+                const Model = await CadooseModel.registerAndSync("nested_props5", s);
 
                 const a = new Model({
                     info: {
@@ -3110,7 +3091,7 @@ describe("Cadoose Schema Wrapper", () => {
                 });
                 const columnNames = ["info.subinfo.name", "info.subinfo.surname"];
 
-                const Model = await registerAndSync("nested_props6", s);
+                const Model = await CadooseModel.registerAndSync("nested_props6", s);
 
                 const a = new Model({
                     info: {
@@ -3203,7 +3184,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesPK = ["info.subinfo.name", "info.subinfo.surname"];
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
 
-                const Model = await registerAndSync("nested_props7", s);
+                const Model = await CadooseModel.registerAndSync("nested_props7", s);
 
                 const a = new Model({
                     info: {
@@ -3310,7 +3291,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
                 const columnNamesIDX = ["infosubinfosome_indexed_prop"];
 
-                const Model = await registerAndSync("nested_props8", s);
+                const Model = await CadooseModel.registerAndSync("nested_props8", s);
 
                 const a = new Model({
                     info: { 
@@ -3430,7 +3411,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 },{name:"nested_props1"});
 
-                const Model = await registerAndSync("nested_props1", s);
+                const Model = await CadooseModel.registerAndSync("nested_props1", s);
 
                 const a = new Model({
                     info: {
@@ -3485,7 +3466,7 @@ describe("Cadoose Schema Wrapper", () => {
                 });
                 const columnNames = ["info.name", "info.surname"];
 
-                const Model = await registerAndSync("nested_props2", s);
+                const Model = await CadooseModel.registerAndSync("nested_props2", s);
 
                 const a = new Model({
                     info: {
@@ -3562,7 +3543,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesPK = ["info.name", "info.surname"];
                 const columnNamesCK = ["info.some_super_prop"];
 
-                const Model = await registerAndSync("nested_props3", s);
+                const Model = await CadooseModel.registerAndSync("nested_props3", s);
 
                 const a = new Model({
                     info: {
@@ -3653,7 +3634,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesCK = ["info.some_super_prop"];
                 const columnNamesIDX = ["infosome_indexed_prop"];
 
-                const Model = await registerAndSync("nested_props4", s);
+                const Model = await CadooseModel.registerAndSync("nested_props4", s);
 
                 const a = new Model({
                     info: {
@@ -3759,7 +3740,7 @@ describe("Cadoose Schema Wrapper", () => {
                     }
                 });
 
-                const Model = await registerAndSync("nested_props5", s);
+                const Model = await CadooseModel.registerAndSync("nested_props5", s);
 
                 const a = new Model({
                     info: {
@@ -3832,7 +3813,7 @@ describe("Cadoose Schema Wrapper", () => {
                 });
                 const columnNames = ["info.subinfo.name", "info.subinfo.surname"];
 
-                const Model = await registerAndSync("nested_props6", s);
+                const Model = await CadooseModel.registerAndSync("nested_props6", s);
 
                 const a = new Model({
                     info: {
@@ -3927,7 +3908,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesPK = ["info.subinfo.name", "info.subinfo.surname"];
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
 
-                const Model = await registerAndSync("nested_props7", s);
+                const Model = await CadooseModel.registerAndSync("nested_props7", s);
 
                 const a = new Model({
                     info: {
@@ -4036,7 +4017,7 @@ describe("Cadoose Schema Wrapper", () => {
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
                 const columnNamesIDX = ["infosubinfosome_indexed_prop"];
 
-                const Model = await registerAndSync("nested_props8", s);
+                const Model = await CadooseModel.registerAndSync("nested_props8", s);
 
                 const a = new Model({
                     info: { 
@@ -4159,7 +4140,7 @@ describe("Cadoose Schema Wrapper", () => {
                     connections: [websocket]
                 });
 
-                const Model = await registerAndSync("schema_in_array", user);
+                const Model = await CadooseModel.registerAndSync("schema_in_array", user);
 
                 const l = [
                     {
@@ -4206,7 +4187,7 @@ describe("Cadoose Schema Wrapper", () => {
                     connections: [websocket]
                 });
 
-                const Model = await registerAndSync("schema_in_set", user);
+                const Model = await CadooseModel.registerAndSync("schema_in_set", user);
 
                 let l = [
                     {
@@ -4274,7 +4255,7 @@ describe("Cadoose Schema Wrapper", () => {
                     connections: new Set([websocket])
                 });
 
-                const Model = await registerAndSync("schema_in_set", user);
+                const Model = await CadooseModel.registerAndSync("schema_in_set", user);
 
                 const l = [
                     {
@@ -4321,7 +4302,7 @@ describe("Cadoose Schema Wrapper", () => {
                     connections: new Set([websocket])
                 });
 
-                const Model = await registerAndSync("schema_in_set", user);
+                const Model = await CadooseModel.registerAndSync("schema_in_set", user);
 
                 const l = [
                     {

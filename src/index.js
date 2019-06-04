@@ -2,8 +2,9 @@ import util from "util";
 import Promise from "bluebird";
 import ExpressCassandra from "express-cassandra";
 import Schema from "./Schema";
-import ModelProxy, {ModelInstanceProxy, ModelDummy, TransformInstanceValues, BindModelInstance, FusedModelType} from "./Model";
+import ModelProxy, {Model, ModelInstanceProxy, ModelDummy, TransformInstanceValues, BindModelInstance, FusedModelType} from "./Model";
 import "harmony-reflect";
+import Map from "./SpecialTypes/Map";
 
 const Proxy = global.Proxy;
 Proxy.prototype = {};
@@ -162,10 +163,19 @@ function MakeCadoose(clientOptions:{
     udfs?:Object,
     udas?:Object
 }){
-    if(!_CadooseProxy){
+    if(clientOptions && ormOptions && !_CadooseProxy){
         _CadooseProxy = new CadooseProxy(clientOptions, ormOptions);
+    }
+    
+    if(_CadooseProxy === null){
+        throw new Error("Cadoose is not yet initialized!");
     }
     return _CadooseProxy;
 };
 
 export {MakeCadoose};
+
+export {Schema, Model}
+export const SpecialTypes = {
+    Map: Map
+}
