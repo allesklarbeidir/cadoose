@@ -43,84 +43,6 @@ describe("Cadoose Schema Wrapper", () => {
 
     
     describe("Basic CRUD Operations with Schemas and Models", () => {
-
-        describe("Model Instance-Methods and Static-Methods", () => {
-
-            it("Instance Methods work and have access to Model-Instance via 'this'", async () => {
-                const s = new Schema({
-                    string: {
-                        type: String,
-                        primary_key: true
-                    },
-                    number: {
-                        type: Number,
-                    },
-                    bool: {
-                        type: Boolean,
-                    }
-                }, {});
-                s.methods = {
-                    instanceMethod1(){
-                        return this.string+" from instance method!";
-                    }
-                }
-                
-                const Model = await CadooseModel.registerAndSync("primitives", s);
-        
-                const a = new Model({
-                    string: "string",
-                    number: 100,
-                    bool: true
-                });
-                await a.saveAsync();
-        
-                const aa = await Model.findOneAsync({string:"string"});
-    
-                expect(aa.string).to.be.equal(a.string);
-                expect(aa.number).to.be.equal(a.number);
-                expect(aa.bool).to.be.equal(a.bool);
-
-                expect(aa.instanceMethod1()).to.be.equal("string from instance method!");
-            });
-
-            it("Static Methods work", async () => {
-                const s = new Schema({
-                    string: {
-                        type: String,
-                        primary_key: true
-                    },
-                    number: {
-                        type: Number,
-                    },
-                    bool: {
-                        type: Boolean,
-                    }
-                }, {});
-                s.statics = {
-                    staticMethod1(){
-                        return "hello from static method!";
-                    }
-                }
-                
-                const Model = await CadooseModel.registerAndSync("primitives", s);
-        
-                const a = new Model({
-                    string: "string",
-                    number: 100,
-                    bool: true
-                });
-                await a.saveAsync();
-        
-                const aa = await Model.findOneAsync({string:"string"});
-    
-                expect(aa.string).to.be.equal(a.string);
-                expect(aa.number).to.be.equal(a.number);
-                expect(aa.bool).to.be.equal(a.bool);
-
-                expect(Model.staticMethod1()).to.be.equal("hello from static method!");
-            });
-
-        });
         
         describe("Data-Types: Primitive Types (String / Number / Boolean)", () => {
 
@@ -4349,7 +4271,164 @@ describe("Cadoose Schema Wrapper", () => {
 
         });
 
-    })
+    });
     
+    describe("Model Methods", () => {
+
+        describe("User-defined Model Instance-Methods and Static-Methods", () => {
+
+            it("Instance Methods work and have access to Model-Instance via 'this'", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true
+                    },
+                    number: {
+                        type: Number,
+                    },
+                    bool: {
+                        type: Boolean,
+                    }
+                }, {});
+                s.methods = {
+                    instanceMethod1(){
+                        return this.string+" from instance method!";
+                    }
+                }
+                
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+        
+                const a = new Model({
+                    string: "string",
+                    number: 100,
+                    bool: true
+                });
+                await a.saveAsync();
+        
+                const aa = await Model.findOneAsync({string:"string"});
+    
+                expect(aa.string).to.be.equal(a.string);
+                expect(aa.number).to.be.equal(a.number);
+                expect(aa.bool).to.be.equal(a.bool);
+
+                expect(aa.instanceMethod1()).to.be.equal("string from instance method!");
+            });
+
+            it("Static Methods work", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true
+                    },
+                    number: {
+                        type: Number,
+                    },
+                    bool: {
+                        type: Boolean,
+                    }
+                }, {});
+                s.statics = {
+                    staticMethod1(){
+                        return "hello from static method!";
+                    }
+                }
+                
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+        
+                const a = new Model({
+                    string: "string",
+                    number: 100,
+                    bool: true
+                });
+                await a.saveAsync();
+        
+                const aa = await Model.findOneAsync({string:"string"});
+    
+                expect(aa.string).to.be.equal(a.string);
+                expect(aa.number).to.be.equal(a.number);
+                expect(aa.bool).to.be.equal(a.bool);
+
+                expect(Model.staticMethod1()).to.be.equal("hello from static method!");
+            });
+
+        });
+
+        describe.only("Mongoose-like API extensions", () => {
+
+            describe("#Model.create", () => {
+
+                    it("Call with single model prop-map creates and saves one model-instance", async () => {
+                        const s = new Schema({
+                            string: {
+                                type: String,
+                                primary_key: true
+                            },
+                            number: {
+                                type: Number,
+                            },
+                            bool: {
+                                type: Boolean,
+                            }
+                        }, {});
+                        
+                        const Model = await CadooseModel.registerAndSync("primitives", s);
+                
+                        await Model.create({
+                            string: "string",
+                            number: 100,
+                            bool: true
+                        });
+
+                        const aa = await Model.findOneAsync({string:"string"});
+            
+                        expect(aa.string).to.be.equal("string");
+                        expect(aa.number).to.be.equal(100);
+                        expect(aa.bool).to.be.equal(true);
+                    });
+
+                    it("Call with multiple model prop-maps creates and saves multiple model-instance", async () => {
+                        const s = new Schema({
+                            string: {
+                                type: String,
+                                primary_key: true
+                            },
+                            number: {
+                                type: Number,
+                            },
+                            bool: {
+                                type: Boolean,
+                            }
+                        }, {});
+                        
+                        const Model = await CadooseModel.registerAndSync("primitives", s);
+                
+                        await Model.create({
+                            string: "string",
+                            number: 100,
+                            bool: true
+                        },{
+                            string: "string-2",
+                            number: 100,
+                            bool: true
+                        });
+
+                        const aa = await Model.findOneAsync({string:"string"});
+                        const aa2 = await Model.findOneAsync({string:"string-2"});
+            
+                        expect(aa.string).to.be.equal("string");
+                        expect(aa.number).to.be.equal(100);
+                        expect(aa.bool).to.be.equal(true);
+
+                        expect(aa2.string).to.be.equal("string-2");
+                        expect(aa2.number).to.be.equal(100);
+                        expect(aa2.bool).to.be.equal(true);
+                    });
+
+            });
+
+        });
+
+    });
+
 
 });

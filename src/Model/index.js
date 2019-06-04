@@ -14,6 +14,8 @@ import "harmony-reflect";
 const Proxy = global.Proxy;
 Proxy.prototype = {};
 
+const cadoose = require("../index").MakeCadoose;
+
 //#region type-def
 export type expressCassandraModelType = {
     
@@ -81,7 +83,7 @@ export class Model{
     Model:any = null
 
     static async registerAndSync(name, schema){
-        const MyModel = await require("../index").MakeCadoose().loadSchema(name, schema);
+        const MyModel = await cadoose().loadSchema(name, schema);
         await MyModel.syncDBAsync();
         
         return MyModel;
@@ -108,7 +110,11 @@ export class Model{
         this.Model = this;
     }
 
-    create_table = (schema, callback) => {
+    /*
+        Overrides for express-cassandra methods
+    */
+
+    _create_table = (schema, callback) => {
         const properties = this._model._properties;
         const tableName = properties.table_name;
         const rows = [];
@@ -199,13 +205,24 @@ export class Model{
             });
         };
 
-        this.create_table(modelSchema, afterDBCreate);
+        this._create_table(modelSchema, afterDBCreate);
 
         this._model.syncDB(callback);
     }
-    isSuperModel = () => {
-        return true;
+
+
+    /*
+        Mongoose-like API Extensions
+    */
+
+    create = async (...models) => {
+        await Promise.all(models.map(m => {
+            const mod = new (cadoose().models[this._name])(m);
+            return mod.saveAsync();
+        }));
     }
+
+
 }
 export const ModelDummy = new Model();
 
