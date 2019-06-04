@@ -1,0 +1,3 @@
+# mocha commandline default run options
+--timeout 30000
+--require @babel/register
