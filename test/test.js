@@ -4422,9 +4422,9 @@ describe("Cadoose", () => {
 
         describe("Mongoose-like API extensions", () => {
 
-            describe("#Model.create", () => {
+            describe.only("#Model.create", () => {
 
-                    it("Call with single model prop-map creates and saves one model-instance", async () => {
+                    it("Call with single model prop-map creates and saves *and returns* one model-instance", async () => {
                         const s = new Schema({
                             string: {
                                 type: String,
@@ -4440,11 +4440,15 @@ describe("Cadoose", () => {
                         
                         const Model = await CadooseModel.registerAndSync("primitives", s);
                 
-                        await Model.create({
+                        const a = await Model.create({
                             string: "string",
                             number: 100,
                             bool: true
                         });
+
+                        expect(a && a.string === "string").to.be.equal(true);
+                        expect(a && a.number === 100).to.be.equal(true);
+                        expect(a && a.bool === true).to.be.equal(true);
 
                         const aa = await Model.findOneAsync({string:"string"});
             
@@ -4453,7 +4457,7 @@ describe("Cadoose", () => {
                         expect(aa.bool).to.be.equal(true);
                     });
 
-                    it("Call with multiple model prop-maps creates and saves multiple model-instance", async () => {
+                    it("Call with multiple model prop-maps creates and saves *and returns* multiple model-instance", async () => {
                         const s = new Schema({
                             string: {
                                 type: String,
@@ -4469,7 +4473,7 @@ describe("Cadoose", () => {
                         
                         const Model = await CadooseModel.registerAndSync("primitives", s);
                 
-                        await Model.create({
+                        const arr = await Model.create({
                             string: "string",
                             number: 100,
                             bool: true
@@ -4478,6 +4482,18 @@ describe("Cadoose", () => {
                             number: 100,
                             bool: true
                         });
+
+                        expect(Array.isArray(arr)).to.be.equal(true);
+                        expect(arr.length).to.be.equal(2);
+                        
+                        expect(arr[0].string).to.be.equal("string");
+                        expect(arr[1].string).to.be.equal("string-2");
+
+                        expect(arr[0].number).to.be.equal(100);
+                        expect(arr[1].number).to.be.equal(100);
+
+                        expect(arr[0].bool).to.be.equal(true);
+                        expect(arr[1].bool).to.be.equal(true);
 
                         const aa = await Model.findOneAsync({string:"string"});
                         const aa2 = await Model.findOneAsync({string:"string-2"});

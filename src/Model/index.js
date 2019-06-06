@@ -220,10 +220,17 @@ export class Model{
     */
 
     create = async (...models) => {
-        await Promise.all(models.map(m => {
+        const arr = await Promise.all(models.map(m => {
             const mod = new (cadoose().models[this._name])(m);
-            return mod.saveAsync();
+            return new Promise(async (resolve, reject) => {
+                await mod.saveAsync();
+                resolve(mod);
+            });
         }));
+        if(arr.length === 1){
+            return arr[0];
+        }
+        return arr;
     }
 
 
