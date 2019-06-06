@@ -1,8 +1,9 @@
+// @flow
 import util from "util";
 import Promise from "bluebird";
 import ExpressCassandra from "express-cassandra";
 import Schema from "./Schema";
-import ModelProxy, {Model, ModelInstanceProxy, ModelDummy, TransformInstanceValues, BindModelInstance, FusedModelType} from "./Model";
+import ModelProxy, {Model, ModelInstanceProxy, ModelDummy, TransformInstanceValues, BindModelInstance, FusedModelType, ModelExprCassandraDummy} from "./Model";
 import "harmony-reflect";
 import Map from "./SpecialTypes/Map";
 
@@ -29,6 +30,7 @@ class Cadoose {
     _directClient = null
 
     models:{ [name:string]: FusedModelType } = {}
+    _defered:{ [name:string]: {loaded:bool, synced:bool} } = {}
 
     clientOptions:{} = {}
     ormOptions:{} = {}
@@ -82,6 +84,7 @@ class Cadoose {
     }
 
     async loadSchema(modelName:string, modelSchema:Schema):FusedModelType{
+
         const ModelPrx = new ModelProxy(this._expressCassandra.loadSchema(modelName, await modelSchema.toExpressCassandra(this._directClient)), modelSchema);
 
         const ModelFn = function f(instanceValues, fromDB) {
@@ -101,6 +104,64 @@ class Cadoose {
         });
 
         this.models[modelName] = ModelFn;
+        this.models[modelName].__loaded = true;
+        return this.models[modelName];
+    }
+
+    async _undeferModel(modelName:string, modelSchema:Schema, syncModel:bool){
+        const LoadedModel = await this.loadSchema(modelName, modelSchema);
+        this._defered[modelName].loaded = true;
+
+        if(syncModel && !this._defered[modelName].synced){
+            await LoadedModel.syncDBAsync();
+            this._defered[modelName].synced = true;
+        }
+        
+        return LoadedModel;
+    }
+    loadSchemaDefered(modelName:string, modelSchema:Schema, syncModel:bool):FusedModelType&{undefer:() => FusedModelType}{
+
+        const cadoose = this;
+
+        const ModelFn = function f(instanceValues, fromDB){
+            if(cadoose._defered[modelName].loaded){
+                const LoadedModel = cadoose.models[modelName];
+                return new LoadedModel(instanceValues);
+            }
+
+            return new Promise(async (resolve, reject) => {
+                const LoadedModel = await cadoose._undeferModel(modelName, modelSchema, syncModel);
+                resolve(new LoadedModel(instanceValues))
+            });
+        }
+
+        const keys = [...new Set([...Object.keys(ModelExprCassandraDummy()), ...Object.keys(ModelDummy), ...Object.keys(modelSchema.statics)])];
+        keys.forEach(k => {
+            Object.defineProperty(ModelFn, k, {
+                get: function(){
+                    if(cadoose._defered[modelName].loaded){
+                        const LoadedModel = cadoose.models[modelName];
+                        const fn = LoadedModel[k].bind(LoadedModel);
+                        return fn;
+                    }
+
+                    return new Promise(async (resolve, reject) => {
+                        const LoadedModel = await cadoose._undeferModel(modelName, modelSchema, syncModel);
+
+                        const fn = LoadedModel[k].bind(LoadedModel);
+                        resolve(fn);
+                    });
+                }
+            });
+        });
+
+        ModelFn.undefer = async () => {
+            const LoadedModel = await cadoose._undeferModel(modelName, modelSchema, syncModel);
+            return LoadedModel;
+        };
+
+        this.models[modelName] = ModelFn;
+        this._defered[modelName] = {loaded:false, synced:false};
         return this.models[modelName];
     }
 }

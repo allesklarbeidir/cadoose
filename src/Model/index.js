@@ -88,6 +88,10 @@ export class Model{
         
         return MyModel;
     }
+    static registerAndSyncDefered(name, schema){
+        const MyModel = cadoose().loadSchemaDefered(name, schema, true);
+        return MyModel;
+    }
 
     constructor(expressCassandraModel:expressCassandraModelType, schemaSchema:Schema){
         
@@ -225,6 +229,16 @@ export class Model{
 
 }
 export const ModelDummy = new Model();
+export const ModelExprCassandraDummy = () => cadoose()._expressCassandra.loadSchema("test_dummy", {
+    fields:{
+        id: {
+            type: "text",
+            default: "dummy-id"
+        }
+    },
+    key: ["id"]
+});
+
 
 const _models = {};
 

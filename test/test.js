@@ -20,7 +20,7 @@ const cassandra = MakeCadoose({
     migration: 'safe',
 });
 
-describe("Cadoose Schema Wrapper", () => {
+describe("Cadoose", () => {
 
     afterEach((done) => {
         Promise.all(Object.keys(cassandra.instance).map(table => new Promise((resolve,reject) => {
@@ -39,6 +39,73 @@ describe("Cadoose Schema Wrapper", () => {
                 }
             }))
         ).then(_ => done()).catch(_ => done());
+    });
+
+
+    describe("Two different approaches for registering+syncing a Model in the DB", () => {
+
+        it("Model.registerAndSync being asynchronous, one needs to 'await' the Model", async () => {
+            const s = new Schema({
+                string: {
+                    type: String,
+                    primary_key: true
+                },
+                number: {
+                    type: Number,
+                },
+                bool: {
+                    type: Boolean,
+                }
+            }, {});
+            
+            const Model = await CadooseModel.registerAndSync("primitives", s);
+    
+            const a = new Model({
+                string: "string",
+                number: 100,
+                bool: true
+            });
+            await a.saveAsync();
+
+            const aa = await Model.findOneAsync({string:"string"});
+
+            expect(aa.string).to.be.equal(a.string);
+            expect(aa.number).to.be.equal(a.number);
+            expect(aa.bool).to.be.equal(a.bool);
+        });
+
+        it("Model.registerAndSyncDefered being synchronous, no need to 'await' the Model, but call 'await MyModel.undefer()' or put an extra await in front of any other method being called.", async () => {
+            const s = new Schema({
+                string: {
+                    type: String,
+                    primary_key: true
+                },
+                number: {
+                    type: Number,
+                },
+                bool: {
+                    type: Boolean,
+                }
+            }, {});
+            
+            const Model = CadooseModel.registerAndSyncDefered("primitives", s);
+
+            await Model.undefer();
+    
+            const a = new Model({
+                string: "string",
+                number: 100,
+                bool: true
+            });
+            await a.saveAsync();
+
+            const aa = await Model.findOneAsync({string:"string"});
+
+            expect(aa.string).to.be.equal(a.string);
+            expect(aa.number).to.be.equal(a.number);
+            expect(aa.bool).to.be.equal(a.bool);
+        });
+
     });
 
     
@@ -68,7 +135,7 @@ describe("Cadoose Schema Wrapper", () => {
                     bool: true
                 });
                 await a.saveAsync();
-        
+
                 const aa = await Model.findOneAsync({string:"string"});
     
                 expect(aa.string).to.be.equal(a.string);
