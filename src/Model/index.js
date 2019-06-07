@@ -3,6 +3,9 @@ import util from "util";
 import Promise from "bluebird";
 import uuidv4 from "uuid/v4";
 
+import lodashSet from "lodash/set";
+import lodashGet from "lodash/get";
+
 import TableBuilder from "express-cassandra/lib/builders/table";
 import Schemer from "express-cassandra/lib/validators/schema";
 import Parser from "express-cassandra/lib/utils/parser";
@@ -312,8 +315,8 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
 
     // if a field is undefinded in instanceValues, set it to >null< to reflect behavior of DB
     Object.keys(s).forEach(k => {
-        if(typeof s[k] === "object" && s[k].hasOwnProperty("type") && instanceValues[k] === undefined){
-            instanceValues[k] = null;
+        if(typeof s[k] === "object" && s[k].hasOwnProperty("type") && lodashGet(instanceValues, k) === undefined){
+            lodashSet(instanceValues, k, null);
         }
     });
 
