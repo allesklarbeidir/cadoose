@@ -108,11 +108,11 @@ class Cadoose {
         return this.models[modelName];
     }
 
-    async _undeferModel(modelName:string, modelSchema:Schema, syncModel:bool){
+    async _undeferModel(modelName:string, modelSchema:Schema, syncModel:bool, forceSync:bool){
         const LoadedModel = await this.loadSchema(modelName, modelSchema);
         this._defered[modelName].loaded = true;
 
-        if(syncModel && !this._defered[modelName].synced){
+        if(syncModel && (!this._defered[modelName].synced || forceSync)){
             await LoadedModel.syncDBAsync();
             this._defered[modelName].synced = true;
         }
@@ -164,8 +164,8 @@ class Cadoose {
             });
         });
 
-        ModelFn.undefer = async () => {
-            const LoadedModel = await cadoose._undeferModel(modelName, modelSchema, syncModel);
+        ModelFn.undefer = async (forceSync:bool) => {
+            const LoadedModel = await cadoose._undeferModel(modelName, modelSchema, syncModel, forceSync);
             return LoadedModel;
         };
 
