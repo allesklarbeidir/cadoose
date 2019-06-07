@@ -172,6 +172,61 @@ describe("Cadoose", () => {
                 expect(aa.bool).to.be.equal(false);
             });
 
+            it("Unset values (undefined) will be set to >null< to reflect behavior of DB", async () => {
+                const s = new Schema({
+                    id: {
+                        type: String,
+                        primary_key: true
+                    },
+                    necessary_prop: {
+                        type: String
+                    },
+                    unnprops: {
+                        prop1: {
+                            type: String
+                        },
+                        prop2: {
+                            type: String
+                        },
+                        unnprops2: {
+                            prop3: {
+                                type: String
+                            }
+                        }
+                    }
+                });
+
+                const Model = CadooseModel.registerAndSyncDefered("undefined_to_null", s);
+
+                await Model.undefer();
+
+                const a = new Model({
+                    id: "some-id",
+                    necessary_prop: "necessary-prop!"
+                });
+
+                expect(a.id).to.be.equal("some-id");
+                expect(a.necessary_prop).to.be.equal("necessary-prop!");
+                expect(typeof a.unnprops).to.be.equal("object");
+                expect(a.unnprops.prop1).to.be.equal(null);
+                expect(a.unnprops.prop2).to.be.equal(null);
+                expect(typeof a.unnprops.unnprops2).to.be.equal("object");
+                expect(a.unnprops.unnprops2.prop3).to.be.equal(null);
+
+                await a.saveAsync();
+
+                const aa = await Model.findOneAsync({id:"some-id"});
+
+                expect(aa.id).to.be.equal("some-id");
+                expect(aa.necessary_prop).to.be.equal("necessary-prop!");
+                expect(typeof aa.unnprops).to.be.equal("object");
+                expect(aa.unnprops.prop1).to.be.equal(null);
+                expect(aa.unnprops.prop2).to.be.equal(null);
+                expect(typeof aa.unnprops.unnprops2).to.be.equal("object");
+                expect(aa.unnprops.unnprops2.prop3).to.be.equal(null);
+
+            });
+
             describe("Primary-, Clustering-Keys and Secondary Indexes", () => {
 
                 it("Field with 'primary_key' set to true is the primary key", async () => {
@@ -4422,7 +4477,7 @@ describe("Cadoose", () => {
 
         describe("Mongoose-like API extensions", () => {
 
-            describe.only("#Model.create", () => {
+            describe("#Model.create", () => {
 
                     it("Call with single model prop-map creates and saves *and returns* one model-instance", async () => {
                         const s = new Schema({
