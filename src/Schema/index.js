@@ -141,15 +141,32 @@ class Schema {
                         });
                     }
                     else{
-                        const simpCompVal = await Schema.simpleComplexToCassandra(valType);
-                        if(simpCompVal){
-                            resolve({
-                                type: "map",
-                                typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},${simpCompVal}`)
-                            });
+                        if(Array.isArray(valType)){
+                            const scomValOfType = valType[0];
+
+                            const simpCompType = await Schema.simpleComplexToCassandra(Array, scomValOfType);
+                            if(simpCompType){
+                                resolve({
+                                    type: "map",
+                                    typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},frozen<${simpCompType.type}${simpCompType.typeDef}>`)
+                                });
+                            }
+                            else{
+                                reject();
+                            }
                         }
                         else{
-                            reject();
+                            const simpCompVal = await Schema.simpleComplexToCassandra(valType);
+                            if(simpCompVal){
+                                resolve({
+                                    type: "map",
+                                    typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},${simpCompVal}`)
+                                });
+                            }
+                            else{
+                                reject();
+                            }
+
                         }
                     }
                 }

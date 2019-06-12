@@ -315,7 +315,13 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
 
     // if a field is undefinded in instanceValues, set it to >null< to reflect behavior of DB
     Object.keys(s).forEach(k => {
-        if(typeof s[k] === "object" && s[k].hasOwnProperty("type") && lodashGet(instanceValues, k) === undefined){
+        if(
+            typeof s[k] === "object" && s[k].hasOwnProperty("type") &&
+            
+            !s[k].hasOwnProperty("default") && !s[k].hasOwnProperty("virtual") &&
+
+            lodashGet(instanceValues, k) === undefined
+        ){
             lodashSet(instanceValues, k, null);
         }
     });

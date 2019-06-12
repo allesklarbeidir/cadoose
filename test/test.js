@@ -2714,6 +2714,42 @@ describe("Cadoose", () => {
                     expect(aa.map.prop2 && aa.map.prop2.equals(b2)).to.be.equal(true);
                     expect(aa.map.prop3 && aa.map.prop3.equals(b3)).to.be.equal(true);
                 });
+
+                it("<text, list<text>> Map (Object) is saved in Database and retrieved as Object", async () => {
+                    const s = new Schema({
+                        key: {
+                            type: String,
+                            primary_key: true,
+                            default: "some-default-id"
+                        },
+                        map: {
+                            type: Map,
+                            of: [String, [String]]
+                        }
+                    });
+
+                    const Model = await CadooseModel.registerAndSync("map_type_text_list_text", s);
+
+                    const map1 = new Map(String, Buffer).set({
+                        prop1: ["list_1"],
+                        prop2: ["list_2"],
+                        prop3: ["list_3"],
+                    });
+
+                    const a = new Model({
+                        map: map1
+                    });
+
+                    await a.saveAsync();
+                    
+                    const aa = await Model.findOneAsync({key:"some-default-id"});
+
+                    expect(aa.key).to.be.equal("some-default-id");
+                    expect(typeof(aa.map)).to.be.equal("object");
+                    expect(aa.map.prop1 && aa.map.prop1.length === 1 && aa.map.prop1[0] === "list_1").to.be.equal(true);
+                    expect(aa.map.prop2 && aa.map.prop2.length === 1 && aa.map.prop2[0] === "list_2").to.be.equal(true);
+                    expect(aa.map.prop3 && aa.map.prop3.length === 1 && aa.map.prop3[0] === "list_3").to.be.equal(true);
+                });
             });
 
         });
