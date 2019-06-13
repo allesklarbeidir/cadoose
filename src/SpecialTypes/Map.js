@@ -43,7 +43,7 @@ class Map extends Proxy{
                         if(Object.keys(val).filter(v => typeof(v).toLowerCase() !== o["__$keyType"]) > 0){
                             throw new Error("Not all keys have the correct type.");
                         }
-                        if([].concat(...Object.values(val).map(v => Array.isArray(v) ? v : [v])).filter(v => typeof(v).toLowerCase() !== o["__$valType"]) > 0){
+                        if([].concat(...Object.values(val).map(v => Array.isArray(v) ? v : [v])).filter(v => (typeof(v)).toLowerCase() !== o["__$valType"]) > 0){
                             throw new Error("Not all values have the correct type.");
                         }
                         o = {
