@@ -20,21 +20,30 @@ class Map extends Proxy{
             
             Object.defineProperty(o, "__$keyType", {
                 get: function(){
-                    return keyType.name;
+                    if(keyType.name){
+                        return keyType.name.toLowerCase();
+                    }
+                    return keyType;
                 }
             });
             Object.defineProperty(o, "__$valType", {
                 get: function(){
-                    return valType.name;
+                    if(valType.name){
+                        return valType.name.toLowerCase();
+                    }
+                    else if(Array.isArray(valType)){
+                        return valType[0].name.toLowerCase();
+                    }
+                    return valType;
                 }
             });
             Object.defineProperty(o, "set", {
                 get: function(){
                     return function(val){
-                        if(Object.keys(val).filter(v => typeof(v) !== o["__$keyType"]) > 0){
+                        if(Object.keys(val).filter(v => typeof(v).toLowerCase() !== o["__$keyType"]) > 0){
                             throw new Error("Not all keys have the correct type.");
                         }
-                        if(Object.values(val).filter(v => typeof(v) !== o["__$valType"]) > 0){
+                        if([].concat(...Object.values(val).map(v => Array.isArray(v) ? v : [v])).filter(v => typeof(v).toLowerCase() !== o["__$valType"]) > 0){
                             throw new Error("Not all values have the correct type.");
                         }
                         o = {
