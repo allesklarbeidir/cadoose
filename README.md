@@ -14,7 +14,7 @@ The modelling works exactly as in mongoose, the query functions work as in expre
 Init a connection:
 
 In mongoose:
-```
+```js
 import mongoose from "mongoose";
 
 const config = { /* Connection Settings.... */ };
@@ -23,7 +23,7 @@ mongoose.connect(connectionString);
 ```
 
 In cadoose:
-```
+```js
 import {MakeCadoose, CADOOSE} from  "cadoose";
 const cassandra = MakeCadoose({
 	    contactPoints: ["127.0.0.1"],
@@ -42,7 +42,7 @@ const cassandra = MakeCadoose({
 Register a Model:
 
 In mongoose:
-```
+```js
 import  mongoose, {Schema} from  "mongoose";
 
 const WebsocketSchema = new Schema({
@@ -65,7 +65,7 @@ const User = mongoose.model("user", user);
 ```
 
 In cadoose:
-```
+```js
 import {Schema, Model} from "cadoose";
 
 const WebsocketSchema = new Schema({
@@ -95,7 +95,7 @@ const User = await Model.registerAndSync("user", user);
 
 This is unhandy if you want to declare a Model in an ES6 module and then export the Model because you'd be exporting a Promise. To avoid this please use the 'registerAndSyncDefered' method for registering + syncing a Model with the DB. Example below:
 
-```
+```js
 import {Schema, Model} from "cadoose";
 
 const WebsocketSchema = new Schema({
