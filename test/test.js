@@ -4604,4 +4604,17 @@ describe("Cadoose", () => {
 
     });
 
+
+    describe("YugaByte YCQL features", () => {
+
+
+        describe("JSONB Datatype", () => {
+
+            
+
+        });
+
+
+    })
+
 });
