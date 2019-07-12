@@ -87,7 +87,7 @@ const UserSchema = new Schema({
 	connections: [WebsocketSchema]
 });
 
-const User = await Model.registerAndSync("user", user);
+const User = await Model.registerAndSync("users", user);
 
 ```
 
@@ -144,8 +144,10 @@ export default User;
 	   // or
 
 	   await User.undefer();
-	   const bob = User.findOneAsync({id:"bob});
 	   // do normal stuff now, it's not defered any more
+
+	   // for example:
+	   const bob = await User.findOneAsync({id:"bob});
 
    }
 */
