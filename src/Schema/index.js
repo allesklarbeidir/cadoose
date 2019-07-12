@@ -12,11 +12,12 @@ Proxy.prototype = {};
 
 //#region Type Definitions
 export type possibleValuesTypes = String|Number|Boolean|Array<*>|Set<*>|Date|Object|Buffer|Schema;
+export type possibleValueTypesCassandraPlainText = "ascii" | "bigint" | "blob" | "boolean" | "counter" | "date" | "decimal" | "double" | "float" | "inet" | "int" | "list" | "map" | "set" | "smallint" | "text" | "time" | "timestamp" | "timeuuid" | "tinyint" | "uuid" | "varchar" | "varint" | "frozen";
 export type possibleValuesValues = string|number|bool|[]|typeof(Set)|Date|Object|Buffer|Schema;
 
 export type SchemaFieldDescription = {
 
-    type:possibleValuesTypes|"map"|"external",
+    type:possibleValuesTypes|possibleValueTypesCassandraPlainText,
     of?:possibleValuesTypes,
     asArray?:bool,
     
