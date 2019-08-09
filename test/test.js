@@ -12,7 +12,9 @@ const cassandra = MakeCadoose({
         contactPoints: ["127.0.0.1"],
         protocolOptions: { port: 9042 },
         keyspace: "main",
-        queryOptions: {consistency: CADOOSE.ExpressCassandra.consistencies.one}
+        queryOptions: {}
+        // THE 'consistency' OPTION CAUSES A TIMEOUT FOR 'IN'-QUERIES RIGHT NOW
+        //queryOptions: {consistency: CADOOSE.ExpressCassandra.consistencies.one}
     },{
     defaultReplicationStrategy : {
         class: 'SimpleStrategy',
@@ -4473,6 +4475,47 @@ describe("Cadoose", () => {
 
     });
     
+    describe("Special Queries", () => {
+
+        it("SELECT IN Query, WORKS ONLY IF THERE IS NO 'consistency' OPTION SET IN 'queryOptions' IN THE CADOOSE CONSTRUCTOR CALL.", async () => {
+
+            const s = new Schema({
+                id: {
+                    type: Number,
+                    primary_key: true
+                },
+                value: {
+                    type: String                    
+                }
+            });
+
+            const Model = await CadooseModel.registerAndSync("select_in_tests", s);
+
+            const rnd = [];
+
+            const saveQueries = [1,2,3,4,5,6,7,8,9].map(v => {
+                const r = Math.random();
+                rnd.push(r);
+                const a = new Model({
+                    id: v,
+                    value: `id: ${v}, value: ${r}`
+                });
+                return a.save({return_query: true});
+            });
+            await MakeCadoose().doBatchAsync(saveQueries);
+
+            const arr = await Model.findAsync({id: {$in: [1,2,3,4,999] } });
+
+            expect(arr.length).to.be.equal(4);
+            arr.forEach((aa, i) => {
+                expect(aa.id).to.be.equal(i+1);
+                expect(aa.value).to.be.equal(`id: ${i+1}, value: ${rnd[i]}`);                
+            });
+            
+        });
+
+    });
+
     describe("Model Methods", () => {
 
         describe("User-defined Model Instance-Methods and Static-Methods", () => {
