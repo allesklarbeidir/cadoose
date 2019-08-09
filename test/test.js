@@ -8,6 +8,7 @@ const expect = chai.expect;
 const Map = SpecialTypes.Map;
 
 const cassandra = MakeCadoose({
+        localDataCenter: "datacenter1",
         contactPoints: ["127.0.0.1"],
         protocolOptions: { port: 9042 },
         keyspace: "main",
@@ -1848,7 +1849,7 @@ describe("Cadoose", () => {
                     expect(aa.bool).to.be.equal(false);
                 });
 
-                it("Setter works, can set Model values and has access to the Model instance (using 'this' and 'function(...)')", async () => {
+                it("Setter works, can set Model values and has access to the Model instance (using 'model' and '(model, schema) => {...}')", async () => {
                     const s = new Schema({
                         string: {
                             type: String,
@@ -2197,6 +2198,47 @@ describe("Cadoose", () => {
                     expect(aa.number).to.be.equal(JSON.stringify(s.schema).length * 100);
                     expect(aa.bool).to.be.equal(false);
                 });
+
+                it("Setter can return value to transform given value and be saved in database, WORKS ONLY WITH SEPERATE ASSIGNMENT ON MODEL INSTANCE", async () => {
+
+                    const s = new Schema({
+                        string: {
+                            type: String,
+                            primary_key: true,
+                        },
+                        number: {
+                            type: Number,
+                        },
+                        virtual_number: {
+                            type: Number,
+                            set: (value, model, schema) => {
+                                return model.number * value;
+                            }
+                        },
+                        bool: {
+                            type: Boolean,
+                            default: false
+                        }
+                    });
+    
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
+    
+                    const a = new Model({
+                        string: "some-default-string",
+                        number: 100
+                    });
+                    a.virtual_number = 100;
+                    
+                    await a.saveAsync();
+    
+                    const aa = await Model.findOneAsync({string: "some-default-string"}, {raw: true});
+    
+                    expect(aa.string).to.be.equal("some-default-string");
+                    expect(aa.number).to.be.equal(100);
+                    expect(aa.virtual_number).to.be.equal(aa.number * 100);
+                    expect(aa.bool).to.be.equal(false);
+
+                })
             });
 
             describe("Transformation functions", () => {
@@ -4608,11 +4650,7 @@ describe("Cadoose", () => {
     describe("YugaByte YCQL features", () => {
 
 
-        describe("JSONB Datatype", () => {
-
-            
-
-        });
+        // moved to 'yugabyte-ycql'
 
 
     })

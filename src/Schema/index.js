@@ -511,8 +511,8 @@ class Schema {
             cf[anchor].get = ((sf) => {
                 const sf_get = sf.get;
                 const sf_schema = thisschema;
-                return function(){
-                    return sf_get.bind(this)(this, sf_schema);
+                return function(_value_from_setter){
+                    return sf_get.bind(this)(this, sf_schema, _value_from_setter);
                 }
             })(sf);
         }
@@ -523,9 +523,18 @@ class Schema {
             cf[anchor].set = ((sf) => {
                 const sf_set = sf.set;
                 const sf_schema = thisschema;
-                return function(value){
-                    sf_set.bind(this)(value, this, sf_schema);
+
+                if(anchor === "virtual"){
+                    return function(value){
+                        sf_set.bind(this)(value, this, sf_schema);
+                    }
                 }
+                else{
+                    return function(value){
+                        return sf_set.bind(this)(value, this, sf_schema);
+                    }
+                }
+
             })(sf);
         }
     }

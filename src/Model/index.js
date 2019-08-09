@@ -297,6 +297,7 @@ class ModelInstance {
 
 }
 const _model_instances = {};
+const _model_setter_memory = {};
 
 export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
 
@@ -334,6 +335,7 @@ export const BindModelInstance = function(instanceValues, modelPrx){
     const uid = uuidv4();
     const modelInstance = new ModelInstance(uid, this, modelPrx);
     _model_instances[uid] = modelInstance;
+    _model_setter_memory[uid] = {};
 
     Object.defineProperty(this, "__$id", {
         get: function(){
@@ -358,14 +360,21 @@ export const BindModelInstance = function(instanceValues, modelPrx){
                 else if(!extra["get"]){
                     Object.defineProperty(modelInstance, k, {
                         enumerable: true,
-                        set: extra["set"].bind(this)
+                        get: () => {
+                            return _model_setter_memory[uid].hasOwnProperty(k) ? _model_setter_memory[uid][k] : undefined;
+                        },
+                        set: ((value) => {
+                            _model_setter_memory[uid][k] = extra["set"].apply(this, [value]);
+                        }).bind(this)
                     });
                 }
                 else{
                     Object.defineProperty(modelInstance, k, {
                         enumerable: true,
-                        get: extra["get"].bind(this),
-                        set: extra["set"].bind(this),
+                        get: extra["get"].bind(this, _model_setter_memory[uid].hasOwnProperty(k) ? _model_setter_memory[uid][k] : undefined),
+                        set: ((value) => {
+                            _model_setter_memory[uid][k] = extra["set"].apply(this, [value]);
+                        }).bind(this)
                     });
                 }
 
