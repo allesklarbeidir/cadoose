@@ -992,10 +992,9 @@ caniuse-lite@^1.0.30000971:
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30000971.tgz#d1000e4546486a6977756547352bc96a4cfd2b13"
   integrity sha512-TQFYFhRS0O5rdsmSbF1Wn+16latXYsQJat66f7S7lizXW1PVpWJeZw9wqqVLIjuxDRz7s7xRUj13QCfd8hKn6g==
 
-cassandra-driver@^3.3.0:
-  version "3.6.0"
-  resolved "https://registry.yarnpkg.com/cassandra-driver/-/cassandra-driver-3.6.0.tgz#a9fb78ca6fcc1f5bf3f3258efb6cc683a9c3f558"
-  integrity sha512-CkN3V+oPaF5RvakUjD3uUjEm8f6U8S0aT1+YqeQsVT3UDpPT2K8SOdNDEHA1KjamakHch6zkDgHph1xWyqBGGw==
+cassandra-driver@allesklarbeidir/nodejs-driver:
+  version "4.1.0"
+  resolved "https://codeload.github.com/allesklarbeidir/nodejs-driver/tar.gz/b48c2cdd031524a6d1dd9d52f617411c510c75b0"
   dependencies:
     long "^2.2.0"
 
@@ -1364,16 +1363,15 @@ expand-brackets@^2.1.4:
     snapdragon "^0.8.1"
     to-regex "^3.0.1"
 
-express-cassandra@^2.3.0:
+express-cassandra@allesklarbeidir/express-cassandra:
   version "2.3.0"
-  resolved "https://registry.yarnpkg.com/express-cassandra/-/express-cassandra-2.3.0.tgz#c20de83eaf83d02229bba3ad0d336345a58c79b3"
-  integrity sha512-xo4yuSf1rNvHMTY9PgISKwOGKbTYYXPcmRJfD0QLDpB6JiG7BSnMbqbNz/T0abgR81qFdXtVlfjdIqH+0iMB5Q==
+  resolved "https://codeload.github.com/allesklarbeidir/express-cassandra/tar.gz/8ad25d37f9127aa5f94983241387cca4109f33ce"
   dependencies:
     JSONStream "^1.3.1"
     async "^1.5.2"
     babel-polyfill "^6.26.0"
     bluebird "^3.4.6"
-    cassandra-driver "^3.3.0"
+    cassandra-driver allesklarbeidir/nodejs-driver
     chai "^4.1.2"
     check-types "^7.4.0"
     debug "^3.1.0"
@@ -1970,7 +1968,12 @@ locate-path@^3.0.0:
     p-locate "^3.0.0"
     path-exists "^3.0.0"
 
-lodash@^4.17.10, lodash@^4.17.11, lodash@^4.17.4:
+lodash@^4.17.10:
+  version "4.17.14"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.14.tgz#9ce487ae66c96254fe20b599f21b6816028078ba"
+  integrity sha512-mmKYbW3GLuJeX+iGP+Y7Gp1AiGHGbXHCOh/jZmrawMmsE7MS4znI3RL2FsjbqOyMayHInjOeykW7PEajUk1/xw==
+
+lodash@^4.17.11, lodash@^4.17.4:
   version "4.17.11"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.11.tgz#b39ea6229ef607ecd89e2c8df12536891cac9b8d"
   integrity sha512-cQKh8igo5QUhZ7lg38DYWAxMvjSAKG0A8wGSVimP07SIUEK2UO+arSRKbRZWtelMtN5V0Hkwh5ryOto/SshYIg==

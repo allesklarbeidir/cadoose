@@ -6,6 +6,7 @@ import Schema from "./Schema";
 import ModelProxy, {Model, ModelInstanceProxy, ModelDummy, TransformInstanceValues, BindModelInstance, FusedModelType, ModelExprCassandraDummy} from "./Model";
 import "harmony-reflect";
 import Map from "./SpecialTypes/Map";
+import JSONB from "./SpecialTypes/JSONB";
 
 const Proxy = global.Proxy;
 Proxy.prototype = {};
@@ -247,5 +248,6 @@ export {MakeCadoose};
 
 export {Schema, Model}
 export const SpecialTypes = {
-    Map: Map
+    Map: Map,
+    JSONB: JSONB
 }

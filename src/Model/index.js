@@ -11,6 +11,7 @@ import Schemer from "express-cassandra/lib/validators/schema";
 import Parser from "express-cassandra/lib/utils/parser";
 
 import Schema, {ExtendedSchemaDescription} from "../Schema";
+import JSONB from "../SpecialTypes/JSONB";
 
 import "harmony-reflect";
 
@@ -310,6 +311,10 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
         }
         else if(s[k] && s[k].type === "set" && (!s[k].asArray && fromDB) && Array.isArray(instanceValues[k])){
             instanceValues[k] = new Set(instanceValues[k]);
+        }
+
+        else if(s[k] && s[k].type === "jsonb" && fromDB){
+            instanceValues[k] = new JSONB(instanceValues[k]);
         }
 
     });

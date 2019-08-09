@@ -13,11 +13,12 @@ Proxy.prototype = {};
 //#region Type Definitions
 export type possibleValuesTypes = String|Number|Boolean|Array<*>|Set<*>|Date|Object|Buffer|Schema;
 export type possibleValueTypesCassandraPlainText = "ascii" | "bigint" | "blob" | "boolean" | "counter" | "date" | "decimal" | "double" | "float" | "inet" | "int" | "list" | "map" | "set" | "smallint" | "text" | "time" | "timestamp" | "timeuuid" | "tinyint" | "uuid" | "varchar" | "varint" | "frozen";
+export type possibleValueTypesYugaByteYCQL = "jsonb";
 export type possibleValuesValues = string|number|bool|[]|typeof(Set)|Date|Object|Buffer|Schema;
 
 export type SchemaFieldDescription = {
 
-    type:possibleValuesTypes|possibleValueTypesCassandraPlainText,
+    type:possibleValuesTypes|possibleValueTypesCassandraPlainText|possibleValueTypesYugaByteYCQL,
     of?:possibleValuesTypes,
     asArray?:bool,
     
@@ -808,7 +809,7 @@ class Schema {
         }
 
         return {
-            fields,
+            fields: new SchemaJSONBFieldProxy(fields),
             
             key,
             indexes,
@@ -840,5 +841,35 @@ class Schema {
         };
     }
 }
+
+
+class SchemaJSONBFieldProxy extends Proxy{
+
+    constructor(obj){
+        super(((obj) => {
+                        
+            return obj;
+            
+        })(obj),{
+            get: (obj, prop) => {
+                let jsonbIndicator;
+                if(prop.indexOf && (jsonbIndicator = prop.indexOf("->")) !== -1){
+                    const jsonbFieldTypeDef = obj[prop.substr(1, jsonbIndicator-2)];
+                    return {
+                        ...jsonbFieldTypeDef,
+                        type: "text"
+                    };
+                }
+                return obj[prop];
+            },
+            set: (obj, prop, value) => {
+                obj[prop] = value;
+                return true;
+            }
+        });
+    }
+
+}
+
 
 export default Schema;

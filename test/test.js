@@ -6,6 +6,7 @@ chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 const Map = SpecialTypes.Map;
+const JSONB = SpecialTypes.JSONB;
 
 const cassandra = MakeCadoose({
         localDataCenter: "datacenter1",
@@ -13,8 +14,6 @@ const cassandra = MakeCadoose({
         protocolOptions: { port: 9042 },
         keyspace: "main",
         queryOptions: {}
-        // THE 'consistency' OPTION CAUSES A TIMEOUT FOR 'IN'-QUERIES RIGHT NOW
-        //queryOptions: {consistency: CADOOSE.ExpressCassandra.consistencies.one}
     },{
     defaultReplicationStrategy : {
         class: 'SimpleStrategy',
@@ -1965,7 +1964,7 @@ describe("Cadoose", () => {
                     const a = new Model();
                     await a.saveAsync();
     
-                    const aa = await Model.findOneAsync({string: "some-default-string"}, { raw: false });
+                    const aa = await Model.findOneAsync({string: "some-default-string"}, { raw: true });
 
                     expect(aa.string).to.be.equal("some-default-string");
                     expect(aa.number).to.be.equal(100);
@@ -2002,7 +2001,7 @@ describe("Cadoose", () => {
                     });
                     await a.saveAsync();
     
-                    const aa = await Model.findOneAsync({string: "some-default-string"});
+                    const aa = await Model.findOneAsync({string: "some-default-string"}, { raw: true });
     
                     expect(aa.string).to.be.equal("some-default-string");
                     expect(aa.number).to.be.equal(100);
@@ -2794,6 +2793,8 @@ describe("Cadoose", () => {
                     expect(aa.map.prop2 && aa.map.prop2.length === 1 && aa.map.prop2[0] === "list_2").to.be.equal(true);
                     expect(aa.map.prop3 && aa.map.prop3.length === 1 && aa.map.prop3[0] === "list_3").to.be.equal(true);
                 });
+
+                it.skip("<text, Schema> Map (Object) is saved in Database and retrieved as Object", async () => {})
             });
 
         });
@@ -4693,7 +4694,115 @@ describe("Cadoose", () => {
     describe("YugaByte YCQL features", () => {
 
 
-        // moved to 'yugabyte-ycql'
+        describe("JSONB Datatype", () => {
+
+            it("Inserts and retrieves Objects as JSONB-Documents into the DB", async () => {
+
+                const s = new Schema({
+                    key: {
+                        type: String,
+                        primary_key: true
+                    },
+                    doc: {
+                        type: "jsonb"
+                    }
+                });
+
+                const Model = await CadooseModel.registerAndSync("jsonb_tests", s);
+
+                const someGenericObject = {
+                    attr0: 0,
+                    attr1: 1,
+                    nested: {
+                        attr0: "nested.attr0",
+                        attr1: true,
+                        attr2: [
+                            "nested.attr2[0]",
+                            "nested.attr2[1]",
+                            "nested.attr2[2]",
+                        ],
+                        nested: {
+                            attr0: new Date(),
+                            attr1: "nested.nested.attr1"
+                        }
+                    }
+                };
+
+                const a = new Model({
+                    key: "some-id",
+                    doc: new JSONB(someGenericObject)
+                });
+
+                expect(typeof(a.doc)).to.be.equal("object");
+                expect(JSON.stringify(a.doc)).to.be.equal(JSON.stringify(someGenericObject));
+
+                await a.saveAsync();
+
+                const aa = await Model.findOneAsync({key: "some-id"});
+
+                expect(typeof(aa.doc)).to.be.equal("object");
+                expect(JSON.stringify(aa.doc)).to.be.equal(JSON.stringify(someGenericObject));
+            });
+
+            it("SELECT query with condition on JSONB-Attribute returns correct row", async () => {
+
+                const s = new Schema({
+                    key: {
+                        type: String,
+                        primary_key: true
+                    },
+                    clusterkey: {
+                        type: Number,
+                        clustering_key: true
+                    },
+                    doc: {
+                        type: "jsonb"
+                    }
+                });
+
+                const Model = await CadooseModel.registerAndSync("jsonb_tests", s);
+
+                const obj1 = {
+                    meta: {
+                        time: {
+                            passed: 1
+                        }
+                    },
+                    stuff: {
+                        someAttr: "lalala"
+                    }
+                };
+                const obj2 = {
+                    meta: {
+                        time: {
+                            passed: 7
+                        }
+                    },
+                    log: {
+                        messages: ["some message", "next message"]
+                    }
+                };
+
+                await Promise.all([obj1, obj2].map(o => {
+                    const a = new Model({
+                        key: "some-id",
+                        clusterkey: Math.random(),
+                        doc: new JSONB(o)
+                    });
+    
+                    return a.saveAsync();
+                }));
+
+                const aa = await Model.findOneAsync({key: "some-id", [JSONB.path("doc").meta.time.passed]: "7"});
+
+                expect(typeof(aa.doc)).to.be.equal("object");
+                expect(aa.doc).to.have.nested.property("meta");
+                expect(aa.doc).to.have.nested.property("meta.time");
+                expect(aa.doc).to.have.nested.property("meta.time.passed");
+                expect(aa.doc.meta.time.passed).to.be.equal(7);
+            });
+
+        });
 
 
     })
