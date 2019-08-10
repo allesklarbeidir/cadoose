@@ -1042,6 +1042,7 @@ describe("Cadoose", () => {
                         expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     });
                 });
+
             });
 
             describe("Validation", () => {
@@ -4804,6 +4805,408 @@ describe("Cadoose", () => {
 
         });
 
+
+        describe("UNIQUE Secondary Index", () => {
+
+            it("Field with 'unique' set to true is indexed as UNIQUE in the Secondary Index", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        unique: true,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    }
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_indexes.forEach(t => {
+                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(t.is_unique).to.be.equal(true);
+                });
+            });
+
+            it("Multiple fields with 'unique' set to true is indexed as UNIQUE in the Secondary Index", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        unique: true,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    some_prop: {
+                        type: String,
+                        unique: true,
+                        default: "testprop"
+                    }
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number","some_prop"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_indexes.forEach(t => {
+                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(t.is_unique).to.be.equal(true);
+                });
+            });
+
+
+            it("Field with 'unique' set to true is indexed as UNIQUE in the Secondary Index (set with options.unique)", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    }
+                },{
+                    unique: "number"
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_indexes.forEach(t => {
+                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(t.is_unique).to.be.equal(true);
+                });
+            });
+
+            it("Multiple fields with 'unique' set to true is indexed as UNIQUE in the Secondary Index (set with options.unique)", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    some_prop: {
+                        type: String,
+                        default: "testprop"
+                    }
+                },{
+                    unique: ["number", "some_prop"]
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number","some_prop"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_indexes.forEach(t => {
+                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(t.is_unique).to.be.equal(true);
+                });
+            });
+
+            it("Multiple fields with 'unique' set to true is indexed as UNIQUE in the Secondary Index (set with options.unique + clustering keys set)", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        clustering_key: true,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    some_prop: {
+                        type: String,
+                        default: "testprop"
+                    }
+                },{
+                    unique: ["number", "some_prop"]
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesCKey = ["number"];
+                const columnNamesIndex = ["number","some_prop"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+                column_types.forEach(t => {
+                    if(columnNamesCKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("clustering");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_indexes.forEach(t => {
+                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(t.is_unique).to.be.equal(true);
+                });
+            });
+
+
+            it("Multiple fields in ONE UNIQUE Index, set using options.unique = [ {indexed: [...] } , ... ]", async () => {
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    some_prop: {
+                        type: String,
+                        default: "testprop"
+                    }
+                },{
+                    unique: [
+                        {indexed: ["number", "some_prop"]}
+                    ]
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number","some_prop"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_indexes.forEach(t => {
+                    expect(`primitives_${columnNamesIndex.join("_")}_unique`.indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(t.is_unique).to.be.equal(true);
+                });
+            });
+
+        })
 
     })
 

@@ -60,9 +60,10 @@ export type SchemaOptions = {
     table_name?:String,
     key?:Array<String|Array<String>>,
     clustering_order?:{
-        [key:string]: "asc"|"desc"
+        [key:String]: "asc"|"desc"
     },
-    indexes?:Array<string>,
+    indexes?:Array<String|{indexed:Array<String>, include:Array<String>}>,
+    unique?:Array<String|{indexed:Array<String>}>,
 
     expressCassandraOpts?: Object
 };
@@ -577,7 +578,7 @@ class Schema {
             before_update.push(applyTrim);
         }
     }
-    _addKeysIndexes(sf, k, primary_key, clustering_key, secondary_index){
+    _addKeysIndexes(sf, k, primary_key, clustering_key, secondary_index, unique_index){
         if(sf.primary_key){
             primary_key.push(k);
         }
@@ -586,6 +587,9 @@ class Schema {
         }
         if(sf.secondary_index){
             secondary_index.push(k);
+        }
+        if(sf.unique === true){
+            unique_index.push(k);
         }
     }
 
@@ -597,6 +601,7 @@ class Schema {
         const primary_key = [];
         const clustering_key = [];
         const secondary_index = [];
+        const unique_index = [];
 
         const before_save = [];
         const before_update = [];
@@ -631,7 +636,7 @@ class Schema {
                 this._addValidators(field, cf, thisschema);
                 this._addGetterSetter(field, cf, thisschema);
                 this._addTransformations(field, key, before_save, before_update);
-                this._addKeysIndexes(field, key, primary_key, clustering_key, secondary_index);
+                this._addKeysIndexes(field, key, primary_key, clustering_key, secondary_index, unique_index);
 
                 return cf;
             };
@@ -808,11 +813,31 @@ class Schema {
             indexes = secondary_index;
         }
 
+        let unique = [];
+        if(this.options.unique){
+            if(Array.isArray(this.options.unique) && this.options.unique.length){
+                unique = this.options.unique;
+            }
+            else if(typeof(this.options.unique) === "string"){
+                unique = [this.options.unique];
+            }
+        }
+        else{
+            unique = unique_index;
+        }
+
+        this.options.key = key;
+        this.options.indexes = indexes;
+        this.options.unique = unique;
+
         return {
+            ...(this.options.table_name ? {table_name: this.options.table_name} : {}),
+
             fields: new SchemaJSONBFieldProxy(fields),
             
             key,
             indexes,
+            unique,
             
             methods,
 

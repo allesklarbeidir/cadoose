@@ -188,6 +188,41 @@ export class Model{
                 tableBuilder.createIndexesAsync = Promise.promisify(tableBuilder.create_indexes);
                 indexingTasks.push(tableBuilder.createIndexesAsync(modelSchema.indexes));
             }
+            // yugabyte ycql UNIQUE index create if defined
+            if (Array.isArray(modelSchema.unique)) {
+                tableBuilder.createUniqueIndexesAsync = Promise.promisify((unique, callback) => {
+
+                    const _create_index_query = (tableName, idx) => {
+
+                        if(typeof(idx) === "object"){
+                            if(Array.isArray(idx.indexed)){
+                                idx = idx.indexed;
+                            }
+                        }
+                        
+                        idx = [].concat(...[idx]);
+
+                        let query = `CREATE UNIQUE INDEX IF NOT EXISTS "${tableName}_${idx.join("_")}_unique" ON "${tableName}" (${idx.map(c => `"${c}"`).join(", ")})`;
+
+                        return query;
+                    };
+                    
+                    const tableName = properties.table_name;
+                    async.eachSeries(unique, (idx, next) => {
+                        const query = _create_index_query(tableName, idx);
+                        this._model._driver.execute_definition_query(query, function (err, result) {
+                            if(err){
+                                next(new Error("model.tablecreation.dbuniqueindexcreate", err));
+                            }
+                            else{
+                                next(null, result);
+                            }
+                        });
+                    }, callback);
+
+                });
+                indexingTasks.push(tableBuilder.createUniqueIndexesAsync(modelSchema.unique));
+            }
             // cassandra custom index create if defined
             if (Array.isArray(modelSchema.custom_indexes)) {
                 tableBuilder.createCustomIndexesAsync = Promise.promisify(tableBuilder.create_custom_indexes);
