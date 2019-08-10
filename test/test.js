@@ -25,10 +25,62 @@ const cassandra = MakeCadoose({
 
 describe("Cadoose", () => {
 
-    afterEach((done) => {
-        Promise.all(Object.keys(cassandra.instance).map(table => new Promise((resolve,reject) => {
-                if(cassandra.instance[table]){
-                    const tablename = cassandra.schemas[table].options.table_name || table;
+    afterEach(async () => {
+        for(const table in cassandra.instance){
+            if(cassandra.instance[table] && cassandra.schemas[table]){
+                const tablename = cassandra.schemas[table].options.table_name || table;
+
+                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${tablename}'`;
+                const column_indexes = await new Promise((rs,rj) => {
+                    cassandra.instance[table].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            rj(err);
+                        }
+                        else{
+                            rs(res.rows);
+                        }
+                    });
+                });
+
+                const queryUDTs = `SELECT type_name FROM system_schema.types WHERE keyspace_name='main'`;
+                const column_udts = await new Promise((rs,rj) => {
+                    cassandra.instance[table].execute_query(queryUDTs, null, function(err, res){
+                        if(err){
+                            rj(err);
+                        }
+                        else{
+                            rs(res.rows);
+                        }
+                    });
+                });
+
+                await Promise.all(column_indexes.map(t => {
+                    return new Promise((rs, rj) => {
+                        cassandra.instance[table].execute_query(`DROP INDEX IF EXISTS "${t.index_name}"`, null, function(err, res){
+                            if(err){
+                                rj();
+                            }
+                            else{
+                                rs();
+                            }
+                        }); 
+                    });
+                }));
+
+                await Promise.all(column_udts.map(t => {
+                    return new Promise((rs, rj) => {
+                        cassandra.instance[table].execute_query(`DROP TYPE IF EXISTS "${t.type_name}"`, null, function(err, res){
+                            if(err){
+                                rj();
+                            }
+                            else{
+                                rs();
+                            }
+                        }); 
+                    });
+                }));
+                
+                await new Promise((resolve, reject) => {
                     cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
                         if(err){
                             reject(err);
@@ -37,12 +89,13 @@ describe("Cadoose", () => {
                             resolve(res);
                         }
                     });
-                }
-                else{
-                    resolve();
-                }
-            }))
-        ).then(_ => done()).catch(_ => done());
+                })
+            }
+        }
+
+        // await Promise.all(Object.keys(cassandra.instance).map(table => async () => {
+            
+        // }));
     });
 
 
@@ -3416,7 +3469,7 @@ describe("Cadoose", () => {
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
                 const columnNamesIDX = ["infosubinfosome_indexed_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props8", s);
+                const Model = await CadooseModel.registerAndSync("nested_props_8", s);
 
                 const a = new Model({
                     info: { 
@@ -3474,7 +3527,7 @@ describe("Cadoose", () => {
 
                 const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props8'";
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props8"].execute_query(query, null, function(err, res){
+                    cassandra.instance["nested_props_8"].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3496,7 +3549,7 @@ describe("Cadoose", () => {
 
                 const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='nested_props8'";
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props8"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance["nested_props_8"].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3507,7 +3560,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIDX.map(n => `nested_props8_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIDX.map(n => `nested_props_8_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                 });
             });
 

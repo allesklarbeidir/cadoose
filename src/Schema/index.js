@@ -718,7 +718,43 @@ class Schema {
                     (sf[_k].constructor === Array || sf[_k].constructor === Set)
                 ){
                     const sarr = [...sf[_k]];
-                    if(
+
+                    if(sarr.length === 1 && typeof sarr[0] === "object" && sarr[0].constructor === Schema){
+                        const exprCassObj = await sarr[0].toExpressCassandra(_client);
+
+                        fields[_key] = {
+                            type: sf[_k].constructor === Array ? "list" : "set",
+                            typeDef: `<${await sarr[0].createOrGetUDT(_client)}>`,
+                            rule:{
+                                validator: (value) => {
+                                    const vals = [...value] || [];
+
+                                    for(let i = 0; i < vals.length; i++){
+                                        const v = vals[i];
+
+                                        const fields_karr = Object.keys(exprCassObj.fields);
+                                        for(let i = 0; i < fields_karr.length; i++){
+                                            const k = fields_karr[i];
+                                            if(v[k]){
+
+                                                const cf = exprCassObj.fields[k];
+                                                if(cf.rule && cf.rule.validator){
+                                                    if(!cf.rule.validator(v[k])){
+                                                        return false;
+                                                    }
+                                                }
+
+                                            }
+                                        }
+                                    }
+
+                                    return true;
+                                },
+                                message: "One or more items have failed in validation"
+                            }
+                        };
+                    }
+                    else if(
                         sarr.length === 1 &&
                         typeof sarr[0] === "object" && sarr[0].constructor === Object &&
                         sarr[0].hasOwnProperty("ref") && typeof(sarr[0].ref) === "string"
@@ -771,87 +807,6 @@ class Schema {
                             throw new Error("Referenced Schema NOT FOUND!");
                         }
                     }
-                }
-                else if(
-                    sf[_k] && typeof sf[_k] === "object" &&
-                    sf[_k].constructor === Array && sf[_k].length === 1 &&
-                    typeof sf[_k][0] === "object" && sf[_k][0].constructor === Schema){
-
-                        const exprCassObj = await sf[_k][0].toExpressCassandra(_client);
-
-                        fields[_key] = {
-                            type: "list",
-                            typeDef: `<${await sf[_k][0].createOrGetUDT(_client)}>`,
-                            rule:{
-                                validator: (value) => {
-                                    const vals = value || [];
-
-                                    for(let i = 0; i < vals.length; i++){
-                                        const v = vals[i];
-
-                                        const fields_karr = Object.keys(exprCassObj.fields);
-                                        for(let i = 0; i < fields_karr.length; i++){
-                                            const k = fields_karr[i];
-                                            if(v[k]){
-
-                                                const cf = exprCassObj.fields[k];
-                                                if(cf.rule && cf.rule.validator){
-                                                    if(!cf.rule.validator(v[k])){
-                                                        return false;
-                                                    }
-                                                }
-
-                                            }
-                                        }
-                                    }
-
-                                    return true;
-                                },
-                                message: "One or more items have failed in validation"
-                            }
-                        };
-                }
-                else if(
-                    sf[_k] && typeof sf[_k] === "object" &&
-                    sf[_k].constructor === Set){
-                        const sarr = [...sf[_k]];
-                        if(sarr.length === 1 && typeof sarr[0] === "object" && sarr[0].constructor === Schema){
-
-                            const exprCassObj = await sarr[0].toExpressCassandra(_client);
-
-                            fields[_key] = {
-                                type: "set",
-                                typeDef: `<${await sarr[0].createOrGetUDT(_client)}>`,
-                                rule:{
-                                    validator: (value) => {
-                                        let vals = value || [];
-                                        vals = [...vals];
-    
-                                        for(let i = 0; i < vals.length; i++){
-                                            const v = vals[i];
-    
-                                            const fields_karr = Object.keys(exprCassObj.fields);
-                                            for(let i = 0; i < fields_karr.length; i++){
-                                                const k = fields_karr[i];
-                                                if(v[k]){
-    
-                                                    const cf = exprCassObj.fields[k];
-                                                    if(cf.rule && cf.rule.validator){
-                                                        if(!cf.rule.validator(v[k])){
-                                                            return false;
-                                                        }
-                                                    }
-    
-                                                }
-                                            }
-                                        }
-    
-                                        return true;
-                                    },
-                                    message: "One or more items have failed in validation"
-                                }
-                            };
-                        }
                 }
             };
 
