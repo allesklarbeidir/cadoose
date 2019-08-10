@@ -28,7 +28,8 @@ describe("Cadoose", () => {
     afterEach((done) => {
         Promise.all(Object.keys(cassandra.instance).map(table => new Promise((resolve,reject) => {
                 if(cassandra.instance[table]){
-                    cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${table}"`, null, function(err, res){
+                    const tablename = cassandra.schemas[table].options.table_name || table;
+                    cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -4600,90 +4601,491 @@ describe("Cadoose", () => {
 
             describe("#Model.create", () => {
 
-                    it("Call with single model prop-map creates and saves *and returns* one model-instance", async () => {
-                        const s = new Schema({
-                            string: {
-                                type: String,
-                                primary_key: true
-                            },
-                            number: {
-                                type: Number,
-                            },
-                            bool: {
-                                type: Boolean,
-                            }
-                        }, {});
-                        
-                        const Model = await CadooseModel.registerAndSync("primitives", s);
-                
-                        const a = await Model.create({
-                            string: "string",
-                            number: 100,
-                            bool: true
-                        });
-
-                        expect(a && a.string === "string").to.be.equal(true);
-                        expect(a && a.number === 100).to.be.equal(true);
-                        expect(a && a.bool === true).to.be.equal(true);
-
-                        const aa = await Model.findOneAsync({string:"string"});
+                it("Call with single model prop-map creates and saves *and returns* one model-instance", async () => {
+                    const s = new Schema({
+                        string: {
+                            type: String,
+                            primary_key: true
+                        },
+                        number: {
+                            type: Number,
+                        },
+                        bool: {
+                            type: Boolean,
+                        }
+                    }, {});
+                    
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
             
-                        expect(aa.string).to.be.equal("string");
-                        expect(aa.number).to.be.equal(100);
-                        expect(aa.bool).to.be.equal(true);
+                    const a = await Model.create({
+                        string: "string",
+                        number: 100,
+                        bool: true
                     });
 
-                    it("Call with multiple model prop-maps creates and saves *and returns* multiple model-instance", async () => {
-                        const s = new Schema({
-                            string: {
-                                type: String,
-                                primary_key: true
-                            },
-                            number: {
-                                type: Number,
-                            },
-                            bool: {
-                                type: Boolean,
-                            }
-                        }, {});
-                        
-                        const Model = await CadooseModel.registerAndSync("primitives", s);
-                
-                        const arr = await Model.create({
-                            string: "string",
-                            number: 100,
-                            bool: true
-                        },{
-                            string: "string-2",
-                            number: 100,
-                            bool: true
-                        });
+                    expect(a && a.string === "string").to.be.equal(true);
+                    expect(a && a.number === 100).to.be.equal(true);
+                    expect(a && a.bool === true).to.be.equal(true);
 
-                        expect(Array.isArray(arr)).to.be.equal(true);
-                        expect(arr.length).to.be.equal(2);
-                        
-                        expect(arr[0].string).to.be.equal("string");
-                        expect(arr[1].string).to.be.equal("string-2");
+                    const aa = await Model.findOneAsync({string:"string"});
+        
+                    expect(aa.string).to.be.equal("string");
+                    expect(aa.number).to.be.equal(100);
+                    expect(aa.bool).to.be.equal(true);
+                });
 
-                        expect(arr[0].number).to.be.equal(100);
-                        expect(arr[1].number).to.be.equal(100);
-
-                        expect(arr[0].bool).to.be.equal(true);
-                        expect(arr[1].bool).to.be.equal(true);
-
-                        const aa = await Model.findOneAsync({string:"string"});
-                        const aa2 = await Model.findOneAsync({string:"string-2"});
+                it("Call with multiple model prop-maps creates and saves *and returns* multiple model-instance", async () => {
+                    const s = new Schema({
+                        string: {
+                            type: String,
+                            primary_key: true
+                        },
+                        number: {
+                            type: Number,
+                        },
+                        bool: {
+                            type: Boolean,
+                        }
+                    }, {});
+                    
+                    const Model = await CadooseModel.registerAndSync("primitives", s);
             
-                        expect(aa.string).to.be.equal("string");
-                        expect(aa.number).to.be.equal(100);
-                        expect(aa.bool).to.be.equal(true);
-
-                        expect(aa2.string).to.be.equal("string-2");
-                        expect(aa2.number).to.be.equal(100);
-                        expect(aa2.bool).to.be.equal(true);
+                    const arr = await Model.create({
+                        string: "string",
+                        number: 100,
+                        bool: true
+                    },{
+                        string: "string-2",
+                        number: 100,
+                        bool: true
                     });
+
+                    expect(Array.isArray(arr)).to.be.equal(true);
+                    expect(arr.length).to.be.equal(2);
+                    
+                    expect(arr[0].string).to.be.equal("string");
+                    expect(arr[1].string).to.be.equal("string-2");
+
+                    expect(arr[0].number).to.be.equal(100);
+                    expect(arr[1].number).to.be.equal(100);
+
+                    expect(arr[0].bool).to.be.equal(true);
+                    expect(arr[1].bool).to.be.equal(true);
+
+                    const aa = await Model.findOneAsync({string:"string"});
+                    const aa2 = await Model.findOneAsync({string:"string-2"});
+        
+                    expect(aa.string).to.be.equal("string");
+                    expect(aa.number).to.be.equal(100);
+                    expect(aa.bool).to.be.equal(true);
+
+                    expect(aa2.string).to.be.equal("string-2");
+                    expect(aa2.number).to.be.equal(100);
+                    expect(aa2.bool).to.be.equal(true);
+                });
 
             });
+
+            describe("#ModelInstance.populate", () => {
+
+                it("Populates a field with a single ref, with pk = ['id']", async () => {
+
+                    const userSchema = new Schema({
+                        id: {
+                            type: String,
+                            primary_key: true
+                        },
+                        name: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+
+                    const chatroomSchema = new Schema({
+                        name: {
+                            type: String,
+                            primary_key: true
+                        },
+                        admin: {
+                            ref: "User"
+                        }
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+
+                    const user1 = new User({
+                        id: "someuserid",
+                        name: "User 1"
+                    });
+
+                    await user1.saveAsync();
+
+                    const room1 = new Chatroom({
+                        name: "Marketing",
+                        admin: user1
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
+                    
+                    expect(room1FromDB.name).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.admin)).to.be.equal("object");
+
+                    userSchema.options.key.forEach(k => {
+                        expect(room1FromDB.admin).to.have.property(k);
+                    })
+
+                    await room1FromDB.populate("admin");
+
+                    expect(room1FromDB.admin).to.have.property("id", "someuserid");
+                    expect(room1FromDB.admin).to.have.property("name", "User 1");
+
+                });
+
+                it("Populates a field with a single ref, with pk = ['id', 'subid']", async () => {
+
+                    const userSchema = new Schema({
+                        id: {
+                            type: String,
+                            primary_key: true
+                        },
+                        subid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        name: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+
+                    const chatroomSchema = new Schema({
+                        name: {
+                            type: String,
+                            primary_key: true
+                        },
+                        admin: {
+                            ref: "User"
+                        }
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+
+                    const user1 = new User({
+                        id: "someuserid",
+                        subid: "someuser-subid",
+                        name: "User 1"
+                    });
+
+                    await user1.saveAsync();
+
+                    const room1 = new Chatroom({
+                        name: "Marketing",
+                        admin: user1
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
+                    
+                    expect(room1FromDB.name).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.admin)).to.be.equal("object");
+
+                    [].concat(...userSchema.options.key).forEach(k => {
+                        expect(room1FromDB.admin).to.have.property(k);
+                    })
+
+                    await room1FromDB.populate("admin");
+
+                    expect(room1FromDB.admin).to.have.property("id", "someuserid");
+                    expect(room1FromDB.admin).to.have.property("subid", "someuser-subid");
+                    expect(room1FromDB.admin).to.have.property("name", "User 1");
+
+                });
+
+                it("Populates a field with a single ref, with pk = ['id', 'subid'], clusterkey = ['cluster']", async () => {
+
+                    const userSchema = new Schema({
+                        id: {
+                            type: String,
+                            primary_key: true
+                        },
+                        subid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        cluster: {
+                            type: String,
+                            clustering_key: true
+                        },
+                        name: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+
+                    const chatroomSchema = new Schema({
+                        name: {
+                            type: String,
+                            primary_key: true
+                        },
+                        admin: {
+                            ref: "User"
+                        }
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+
+                    const user1 = new User({
+                        id: "someuserid",
+                        subid: "someuser-subid",
+                        cluster: "cluster-1",
+                        name: "User 1"
+                    });
+
+                    await user1.saveAsync();
+
+                    const room1 = new Chatroom({
+                        name: "Marketing",
+                        admin: user1
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
+                    
+                    expect(room1FromDB.name).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.admin)).to.be.equal("object");
+
+                    [].concat(...userSchema.options.key).forEach(k => {
+                        expect(room1FromDB.admin).to.have.property(k);
+                    })
+
+                    await room1FromDB.populate("admin");
+
+                    expect(room1FromDB.admin).to.have.property("id", "someuserid");
+                    expect(room1FromDB.admin).to.have.property("subid", "someuser-subid");
+                    expect(room1FromDB.admin).to.have.property("cluster", "cluster-1");
+                    expect(room1FromDB.admin).to.have.property("name", "User 1");
+
+                });
+
+                it("Populates a field with an array of refs, with pk = ['id']", async () => {
+
+                    const userSchema = new Schema({
+                        id: {
+                            type: String,
+                            primary_key: true
+                        },
+                        name: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+
+                    const chatroomSchema = new Schema({
+                        name: {
+                            type: String,
+                            primary_key: true
+                        },
+                        users: [
+                            {ref: "User"}
+                        ]
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+
+                    const users = [1,2,3,4,5,6,7,8,9].map(v => {
+                        return new User({
+                            id: `someuserid-${v}`,
+                            name: `User ${v}`
+                        })
+                    });
+                    const usersSaveQueries = users.map(u => {
+                        return u.save({return_query: true});
+                    });
+
+                    await MakeCadoose().doBatchAsync(usersSaveQueries);
+
+                    const room1 = new Chatroom({
+                        name: "Marketing",
+                        users: users
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
+                    
+                    expect(room1FromDB.name).to.be.equal("Marketing");
+                    expect(Array.isArray(room1FromDB.users)).to.be.equal(true);
+
+                    room1FromDB.users.forEach(u => {
+                        userSchema.options.key.forEach(k => {
+                            expect(u).to.have.property(k);
+                        });
+                    });
+
+                    await room1FromDB.populate("users");
+
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(room1FromDB.users[i]).to.have.property("id", `someuserid-${v}`);
+                        expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
+                    })
+                });
+
+                it("Populates a field with an array of refs, with pk = ['id', 'subid']", async () => {
+
+                    const userSchema = new Schema({
+                        id: {
+                            type: String,
+                            primary_key: true
+                        },
+                        subid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        name: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+
+                    const chatroomSchema = new Schema({
+                        name: {
+                            type: String,
+                            primary_key: true
+                        },
+                        users: [
+                            {ref: "User"}
+                        ]
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+
+                    const users = [1,2,3,4,5,6,7,8,9].map(v => {
+                        return new User({
+                            id: `someuserid-${v}`,
+                            subid: `someuser-subid-${v}`,
+                            name: `User ${v}`
+                        })
+                    });
+                    const usersSaveQueries = users.map(u => {
+                        return u.save({return_query: true});
+                    });
+
+                    await MakeCadoose().doBatchAsync(usersSaveQueries);
+
+                    const room1 = new Chatroom({
+                        name: "Marketing",
+                        users: users
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
+                    
+                    expect(room1FromDB.name).to.be.equal("Marketing");
+                    expect(Array.isArray(room1FromDB.users)).to.be.equal(true);
+
+                    room1FromDB.users.forEach(u => {
+                        [].concat(...userSchema.options.key).forEach(k => {
+                            expect(u).to.have.property(k);
+                        });
+                    });
+
+                    await room1FromDB.populate("users");
+
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(room1FromDB.users[i]).to.have.property("id", `someuserid-${v}`);
+                        expect(room1FromDB.users[i]).to.have.property("subid", `someuser-subid-${v}`);
+                        expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
+                    })
+                });
+
+                it("Populates a field with an array of refs, with pk = ['id', 'subid'], clusterkey = ['cluster']", async () => {
+
+                    const userSchema = new Schema({
+                        id: {
+                            type: String,
+                            primary_key: true
+                        },
+                        subid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        cluster: {
+                            type: String,
+                            clustering_key: true
+                        },
+                        name: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+
+                    const chatroomSchema = new Schema({
+                        name: {
+                            type: String,
+                            primary_key: true
+                        },
+                        users: [
+                            {ref: "User"}
+                        ]
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+
+                    const users = [1,2,3,4,5,6,7,8,9].map(v => {
+                        return new User({
+                            id: `someuserid-${v}`,
+                            subid: `someuser-subid-${v}`,
+                            cluster: `cluster-${v}`,
+                            name: `User ${v}`
+                        })
+                    });
+                    const usersSaveQueries = users.map(u => {
+                        return u.save({return_query: true});
+                    });
+
+                    await MakeCadoose().doBatchAsync(usersSaveQueries);
+
+                    const room1 = new Chatroom({
+                        name: "Marketing",
+                        users: users
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
+                    
+                    expect(room1FromDB.name).to.be.equal("Marketing");
+                    expect(Array.isArray(room1FromDB.users)).to.be.equal(true);
+
+                    room1FromDB.users.forEach(u => {
+                        [].concat(...userSchema.options.key).forEach(k => {
+                            expect(u).to.have.property(k);
+                        });
+                    });
+
+                    await room1FromDB.populate("users");
+
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(room1FromDB.users[i]).to.have.property("id", `someuserid-${v}`);
+                        expect(room1FromDB.users[i]).to.have.property("subid", `someuser-subid-${v}`);
+                        expect(room1FromDB.users[i]).to.have.property("cluster", `cluster-${v}`);
+                        expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
+                    })
+                });
+
+            });
+
 
         });
 
