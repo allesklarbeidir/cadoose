@@ -171,7 +171,7 @@ Cadoose is being developed for YugaByte YCQL right now. It should work for pure 
 
 ## Tests
 
-Cadoose is covered by 92 passing tests.
+Cadoose is covered by 102 passing tests.
 All features have unit tests. If you want to see an example and play around with it please download the repo and run some tests. I didn't have time to write a documentation yet.
 
 ## Contribute
