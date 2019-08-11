@@ -30,8 +30,9 @@ class Cadoose {
 
     _directClient = null
 
-    models:{ [name:string]: FusedModelType } = {}
-    _defered:{ [name:string]: {loaded:bool, synced:bool} } = {}
+    models:{ [name:String]: FusedModelType } = {}
+    _defered:{ [name:String]: {loaded:Boolean, synced:Boolean} } = {}
+    schemas:{ [name:String]: Schema} = {}
 
     clientOptions:{} = {}
     ormOptions:{} = {}
@@ -85,6 +86,8 @@ class Cadoose {
     }
 
     async loadSchema(modelName:string, modelSchema:Schema):FusedModelType{
+
+        this.schemas[modelName] = modelSchema;
 
         const ModelPrx = new ModelProxy(this._expressCassandra.loadSchema(modelName, await modelSchema.toExpressCassandra(this._directClient)), modelSchema);
 

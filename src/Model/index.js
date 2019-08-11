@@ -86,13 +86,19 @@ export class Model{
     _schema:ExtendedSchemaDescription = {}
     Model:any = null
 
-    static async registerAndSync(name, schema){
+    static async registerAndSync(name, schema, tablename){
+        if(tablename){
+            schema.options.table_name = tablename;
+        }
         const MyModel = await cadoose().loadSchema(name, schema);
         await MyModel.syncDBAsync();
         
         return MyModel;
     }
-    static registerAndSyncDefered(name, schema){
+    static registerAndSyncDefered(name, schema, tablename){
+        if(tablename){
+            schema.options.table_name = tablename;
+        }
         const MyModel = cadoose().loadSchemaDefered(name, schema, true);
         return MyModel;
     }
@@ -256,6 +262,7 @@ export class Model{
 
     /*
         Mongoose-like API Extensions
+        Static Methods
     */
 
     create = async (...models) => {
@@ -271,7 +278,6 @@ export class Model{
         }
         return arr;
     }
-
 
 }
 export const ModelDummy = new Model();
@@ -331,6 +337,78 @@ class ModelInstance {
         this.prototype = modelPrx.prototype;
     }
 
+    /*
+        Mongoose-like API Extensions
+        Instance Methods
+    */
+    populate = async (prop) => {
+        const instProp = lodashGet(this._instance, prop, null);
+
+        if(!instProp){
+            throw new Error(`Property '${prop}' not found.`);
+        }
+        if(
+            prop !== null &&
+            (
+                !Array.isArray(instProp) &&
+                (
+                    typeof(instProp) !== "object" ||
+                    instProp.constructor !== Object
+                )
+            )
+        ){
+            throw new Error(`Property '${prop}' of this Instance does not contain a reference to another Model`);
+        }
+
+        const model = cadoose().models[this.constructor._properties.name];
+        
+        const ref = lodashGet(model._schema.fields, `${prop}.ref`, null);
+        if(ref){
+            const refschema = ref && cadoose().schemas[ref] || null;
+            if(refschema){
+
+                const makeQueryObject = (refObj) => Object.keys(refObj).reduce((o, key) => {
+                    let type = lodashGet(refschema.schema, `${key}.type`);
+                    type = typeof(type) === "function" ? type : type.constructor;
+                    o[key] = type(refObj[key]);
+                    return o;
+                },{});
+
+                if(Array.isArray(instProp)){
+
+                    const queryObjArr = instProp.map(makeQueryObject);
+                    const queryObject = queryObjArr.reduce((o, qryObj) => {
+                        Object.keys(qryObj).forEach(k => {
+                            if(o.hasOwnProperty(k)){
+                                o[k]["$in"].push(qryObj[k]);
+                            }
+                            else{
+                                o[k] = {$in: [qryObj[k]]};
+                            }
+                        });
+                        return o;
+                    }, {})
+
+                    const fetchedRefs = await cadoose().models[ref].findAsync({...queryObject});
+                    lodashSet(this._instance, prop, fetchedRefs);
+                }
+                else{
+                    const queryObject = makeQueryObject(instProp);
+
+                    const fetchedRef = await cadoose().models[ref].findOneAsync({...queryObject});
+                    lodashSet(this._instance, prop, fetchedRef);
+                }
+
+            }
+            else{
+                throw new Error(`Referenced Model not found. Looked for '${ref}'`);
+            }
+        }
+        else{
+            throw new Error(`Property '${prop}' not defined in schema.`)
+        }
+    }
+
 }
 const _model_instances = {};
 const _model_setter_memory = {};
@@ -346,6 +424,26 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
         }
         else if(s[k] && s[k].type === "set" && (!s[k].asArray && fromDB) && Array.isArray(instanceValues[k])){
             instanceValues[k] = new Set(instanceValues[k]);
+        }
+        else if(s[k] && s[k].hasOwnProperty("ref") && !fromDB){
+            const refschema = cadoose().schemas[s[k].ref];
+            if(refschema){
+                const refkey = [].concat(...refschema.options.key);
+                const makeRefMap = (refObj) => refkey.reduce((pv, cv) => {
+                    pv[cv] = String(refObj[cv])
+                    return pv;
+                }, {});
+
+                if(Array.isArray(instanceValues[k])){
+                    instanceValues[k] = instanceValues[k].map(makeRefMap);
+                }
+                else{
+                    instanceValues[k] = makeRefMap(instanceValues[k])
+                }
+            }
+            else{
+                throw new Error("Referenced schema NOT found.");
+            }
         }
 
         else if(s[k] && s[k].type === "jsonb" && fromDB){

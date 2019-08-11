@@ -6,9 +6,12 @@ import lodashGet from "lodash/get";
 import UDTBuilder from "express-cassandra/lib/builders/udt";
 
 import "harmony-reflect";
+import Map from "../SpecialTypes/Map";
 
 const Proxy = global.Proxy;
 Proxy.prototype = {};
+
+const cadoose = require("../index").MakeCadoose;
 
 //#region Type Definitions
 export type possibleValuesTypes = String|Number|Boolean|Array<*>|Set<*>|Date|Object|Buffer|Schema;
@@ -652,6 +655,35 @@ class Schema {
                             _subkeyarr.push(_key);
                         }
                     }
+                    else if(sf[_k].hasOwnProperty("ref") && typeof(sf[_k].ref) === "string"){
+                        let refschema = cadoose().schemas[sf[_k].ref];
+                        if(refschema){
+                            const refkey = [].concat(...refschema.options.key);
+
+                            const cf = await makeField({
+                                type: Map,
+                                of: [String, String],
+                                validate: ((__refkey) => {
+                                    const _rkey = __refkey;
+                                    return (value, model, schema) => {
+                                        return value && Object.keys(value).length === _rkey.length && Object.keys(value).map(vk => {
+                                            return _rkey.indexOf(vk) !== -1
+                                        }).filter(Boolean).length === _rkey.length;
+                                    }
+                                })(refkey)
+                            }, _key);
+
+                            fields[_key] = cf;
+                            fields[_key].ref = sf[_k].ref;
+
+                            if(_subkeyarr){
+                                _subkeyarr.push(_key);
+                            }
+                        }
+                        else{
+                            throw new Error("Referenced Schema NOT FOUND!");
+                        }
+                    }
                     else{
                         const subkeys = _subkeyarr || [];
                         
@@ -662,8 +694,8 @@ class Schema {
                         }
 
                         fields[_key] = {
-                            type: "map",
-                            typeDef: "<text, text>",
+                            type: "map", // dummy prop
+                            typeDef: "<text, text>", // dummy prop
                             virtual: {
                                 get: ((_subkeys) => {
                                     const _sarr = _subkeys;
@@ -689,17 +721,19 @@ class Schema {
                 }
                 else if(
                     sf[_k] && typeof sf[_k] === "object" &&
-                    sf[_k].constructor === Array && sf[_k].length === 1 &&
-                    typeof sf[_k][0] === "object" && sf[_k][0].constructor === Schema){
+                    (sf[_k].constructor === Array || sf[_k].constructor === Set)
+                ){
+                    const sarr = [...sf[_k]];
 
-                        const exprCassObj = await sf[_k][0].toExpressCassandra(_client);
+                    if(sarr.length === 1 && typeof sarr[0] === "object" && sarr[0].constructor === Schema){
+                        const exprCassObj = await sarr[0].toExpressCassandra(_client);
 
                         fields[_key] = {
-                            type: "list",
-                            typeDef: `<${await sf[_k][0].createOrGetUDT(_client)}>`,
+                            type: sf[_k].constructor === Array ? "list" : "set",
+                            typeDef: `<${await sarr[0].createOrGetUDT(_client)}>`,
                             rule:{
                                 validator: (value) => {
-                                    const vals = value || [];
+                                    const vals = [...value] || [];
 
                                     for(let i = 0; i < vals.length; i++){
                                         const v = vals[i];
@@ -725,48 +759,60 @@ class Schema {
                                 message: "One or more items have failed in validation"
                             }
                         };
-                }
-                else if(
-                    sf[_k] && typeof sf[_k] === "object" &&
-                    sf[_k].constructor === Set){
-                        const sarr = [...sf[_k]];
-                        if(sarr.length === 1 && typeof sarr[0] === "object" && sarr[0].constructor === Schema){
-
-                            const exprCassObj = await sarr[0].toExpressCassandra(_client);
+                    }
+                    else if(
+                        sarr.length === 1 &&
+                        typeof sarr[0] === "object" && sarr[0].constructor === Object &&
+                        sarr[0].hasOwnProperty("ref") && typeof(sarr[0].ref) === "string"
+                    ){
+                        let refschema = cadoose().schemas[sarr[0].ref];
+                        if(refschema){
+                            const refkey = [].concat(...refschema.options.key);
 
                             fields[_key] = {
-                                type: "set",
-                                typeDef: `<${await sarr[0].createOrGetUDT(_client)}>`,
+                                type: sf[_k].constructor === Array ? "list" : "set",
+                                typeDef: "<frozen<map<text,text>>>",
                                 rule:{
-                                    validator: (value) => {
-                                        let vals = value || [];
-                                        vals = [...vals];
-    
-                                        for(let i = 0; i < vals.length; i++){
-                                            const v = vals[i];
-    
-                                            const fields_karr = Object.keys(exprCassObj.fields);
-                                            for(let i = 0; i < fields_karr.length; i++){
-                                                const k = fields_karr[i];
-                                                if(v[k]){
-    
-                                                    const cf = exprCassObj.fields[k];
-                                                    if(cf.rule && cf.rule.validator){
-                                                        if(!cf.rule.validator(v[k])){
-                                                            return false;
-                                                        }
-                                                    }
-    
+                                    validator: ((__refkey) => {
+                                        const _rkey = __refkey;
+                                        return (value) => {
+
+                                            let vals = value || [];
+                                            vals = [...vals];
+        
+                                            for(let i = 0; i < vals.length; i++){
+                                                const v = vals[i];
+
+                                                const OK = v && Object.keys(v).length === _rkey.length && Object.keys(v).map(vk => {
+                                                    return _rkey.indexOf(vk) !== -1
+                                                }).filter(Boolean).length === _rkey.length;
+
+                                                if(!OK){
+                                                    return false
                                                 }
                                             }
+
+                                            return true;
+
+                                            return value && Object.keys(value).length === _rkey.length && Object.keys(value).map(vk => {
+                                                return _rkey.indexOf(vk) !== -1
+                                            }).filter(Boolean).length === _rkey.length;
                                         }
-    
-                                        return true;
-                                    },
-                                    message: "One or more items have failed in validation"
+                                    })(refkey),
+                                    message: "One or more items are no valid references to the referenced Model."
                                 }
+
                             };
+                            fields[_key].ref = sarr[0].ref;
+
+                            if(_subkeyarr){
+                                _subkeyarr.push(_key);
+                            }
                         }
+                        else{
+                            throw new Error("Referenced Schema NOT FOUND!");
+                        }
+                    }
                 }
             };
 
