@@ -190,9 +190,63 @@ export class Model{
             const indexingTasks = [];
 
             // cassandra index create if defined
-            if (Array.isArray(modelSchema.indexes)) {
-                tableBuilder.createIndexesAsync = Promise.promisify(tableBuilder.create_indexes);
-                indexingTasks.push(tableBuilder.createIndexesAsync(modelSchema.indexes));
+            if (Array.isArray(modelSchema.indexes) || Array.isArray(modelSchema.ycql_indexes)) {
+                tableBuilder.createIndexesAsync = Promise.promisify((indexes, callback) => {
+                    if(indexes.map(idx => typeof(idx) === "string").filter(Boolean).length === indexes.length){
+                        return tableBuilder.create_indexes(indexes, callback);
+                    }
+                    else{
+                        // yugabyte ycql compound secondary index and 'includes' option for fast retrieval
+
+                        const _create_index_query = (tableName, idx) => {
+
+                            let include = [];
+                            let clustering_order = null;
+
+                            if(typeof(idx) === "object"){
+                                if(Array.isArray(idx.include)){
+                                    include = idx.include;
+                                }
+                                if(idx.clustering_order){
+                                    clustering_order = idx.clustering_order;
+                                }
+                                
+                                if(Array.isArray(idx.indexed)){
+                                    idx = idx.indexed;
+                                }
+                            }
+                            
+                            idx = [].concat(...[idx]);
+    
+                            let query = util.format('CREATE INDEX IF NOT EXISTS "%s" ON "%s" (%s) %s %s',
+                                `${tableName}_${idx.join("_")}_idx`,
+                                tableName,
+                                idx.map(c => `"${c}"`).join(", "),
+                                include.length > 0 ? `INCLUDE (${include.map(c => `"${c}"`).join(", ")})` : "",
+                                clustering_order ? 
+                                `WITH CLUSTERING ORDER BY (${Object.keys(clustering_order).map(k => `"${k}" ${clustering_order[k].toUpperCase()}`).join(", ")})`
+                                :
+                                ""
+                            );
+    
+                            return query;
+                        };
+                        
+                        const tableName = properties.table_name;
+                        async.eachSeries(indexes, (idx, next) => {
+                            const query = _create_index_query(tableName, idx);
+                            this._model._driver.execute_definition_query(query, function (err, result) {
+                                if(err){
+                                    next(new Error("model.tablecreation.dbycqlindexcreate", err));
+                                }
+                                else{
+                                    next(null, result);
+                                }
+                            });
+                        }, callback);
+                    }
+                });
+                indexingTasks.push(tableBuilder.createIndexesAsync( [...(modelSchema.indexes || []), ...(modelSchema.ycql_indexes || [])] ));
             }
             // yugabyte ycql UNIQUE index create if defined
             if (Array.isArray(modelSchema.unique)) {

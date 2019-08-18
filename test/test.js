@@ -5661,7 +5661,422 @@ describe("Cadoose", () => {
                 });
             });
 
-        })
+        });
+
+        describe("Secondary Index, compound indexes + 'include' option", () => {
+
+            it("Field with 'secondary_index' set to '{include: [...]}' is indexed in the Secondary Index with 'INCLUDE' option for fast retrieval of included fields", async () => {
+                
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        secondary_index: {include:["bool"]},
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    }
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                expect(column_indexes.length).to.be.gt(0);
+                column_indexes.forEach(t => {
+                    expect(t.options).to.have.property("include");
+                    const include = t.options.include.replace(" ", "").split(",");
+                    include.forEach(v => {
+                        expect(["bool"]).to.include(v);
+                    });
+                    expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                });
+
+            });
+
+            it("Multiple fields with 'secondary_index' set to '{include: [...]}' are seperately indexed in the Secondary Index with 'INCLUDE' option for fast retrieval of included fields", async () => {
+                
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        secondary_index: {include:["bool"]},
+                        default: 100
+                    },
+                    number2: {
+                        type: Number,
+                        secondary_index: {include:["bool2"]},
+                        default: 200
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    bool2: {
+                        type: Boolean,
+                        default: false
+                    }
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number", "number2"];
+                const indexIncludedNames = {
+                    "number": ["bool"],
+                    "number2": ["bool2"]
+                };
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                expect(column_indexes.length).to.be.gt(0);
+
+                columnNamesIndex.forEach(c => {
+
+                    const hasincludes = [].concat(...column_indexes.map(t => {
+                        expect(t.options).to.have.property("include");
+                        const include = t.options.include.replace(" ", "").split(",");
+    
+                        return include.map(v => {
+                            return indexIncludedNames[c].indexOf(v) !== -1;
+                        });
+                    }));
+
+                    expect(hasincludes.filter(Boolean).length).to.be.equal(1);
+
+                    expect(column_indexes.map(t => {
+                        return `primitives_${c}_idx`.indexOf(t.index_name) !== -1;
+                    }).filter(Boolean).length).to.be.equal(1);
+
+                });
+
+            });
+
+
+            it("Compound Secondary Index is indexed in database, using options.indexes = [ {indexed: [...]} ]", async () => {
+                
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    }
+                },{
+                    indexes: [
+                        {indexed: ["number", "bool"]}
+                    ]
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number", "bool"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                expect(column_indexes.length).to.be.equal(1);
+                expect(column_indexes[0].options).to.have.property("target");
+                expect(
+                    column_indexes[0].options.target.replace(" ","").split(",").map(t =>
+                        columnNamesIndex.indexOf(t) !== -1
+                    ).filter(Boolean).length
+                ).to.be.equal(columnNamesIndex.length);
+
+            });
+
+            it("Multiple Compound Secondary Indexes are indexed in database, using options.indexes = [ {indexed: [...]}, ... ]", async () => {
+                
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        default: 100
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    number2: {
+                        type: Number,
+                        default: 100
+                    },
+                    bool2: {
+                        type: Boolean,
+                        default: false
+                    }
+                },{
+                    indexes: [
+                        {indexed: ["number", "bool"]},
+                        {indexed: ["number2", "bool2"]}
+                    ]
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number", "bool"];
+                const columnNamesIndex2 = ["number2", "bool2"];
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                expect(column_indexes.length).to.be.equal(2);
+
+                const idx1 = column_indexes.filter(c => c.index_name === "primitives_number_bool_idx")[0];
+                expect(idx1.options).to.have.property("target");
+                expect(
+                    idx1.options.target.replace(" ","").split(",").map(t =>
+                        columnNamesIndex.indexOf(t) !== -1
+                    ).filter(Boolean).length
+                ).to.be.equal(columnNamesIndex.length);
+
+                const idx2 = column_indexes.filter(c => c.index_name === "primitives_number2_bool2_idx")[0];
+                expect(idx2.options).to.have.property("target");
+                expect(
+                    idx2.options.target.replace(" ","").split(",").map(t =>
+                        columnNamesIndex2.indexOf(t) !== -1
+                    ).filter(Boolean).length
+                ).to.be.equal(columnNamesIndex2.length);
+
+            });
+
+            it("Multiple fields with 'secondary_index' set to '{include: [...]}' are seperately indexed in the Secondary Index with 'INCLUDE' option for fast retrieval of included fields", async () => {
+                
+                const s = new Schema({
+                    string: {
+                        type: String,
+                        primary_key: true,
+                        default: "some-default-string"
+                    },
+                    number: {
+                        type: Number,
+                        secondary_index: {include:["bool"]},
+                        default: 100
+                    },
+                    number2: {
+                        type: Number,
+                        secondary_index: {include:["bool2"]},
+                        default: 200
+                    },
+                    bool: {
+                        type: Boolean,
+                        default: false
+                    },
+                    bool2: {
+                        type: Boolean,
+                        default: false
+                    }
+                });
+                const columnNamesKey = ["string"];
+                const columnNamesIndex = ["number", "number2"];
+                const indexIncludedNames = {
+                    "number": ["bool"],
+                    "number2": ["bool2"]
+                };
+
+                const Model = await CadooseModel.registerAndSync("primitives", s);
+
+                const a = new Model();
+                await a.saveAsync();
+
+                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_types = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                column_types.forEach(t => {
+                    if(columnNamesKey.indexOf(t.column_name) !== -1){
+                        expect(t.kind).to.be.equal("partition_key");
+                    }
+                });
+
+                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const column_indexes = await new Promise((resolve,reject) => {
+                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            reject(err);
+                        }
+                        else{
+                            resolve(res.rows);
+                        }
+                    });
+                });
+                
+                expect(column_indexes.length).to.be.gt(0);
+
+                columnNamesIndex.forEach(c => {
+
+                    const hasincludes = [].concat(...column_indexes.map(t => {
+                        expect(t.options).to.have.property("include");
+                        const include = t.options.include.replace(" ", "").split(",");
+    
+                        return include.map(v => {
+                            return indexIncludedNames[c].indexOf(v) !== -1;
+                        });
+                    }));
+
+                    expect(hasincludes.filter(Boolean).length).to.be.equal(1);
+
+                    expect(column_indexes.map(t => {
+                        return `primitives_${c}_idx`.indexOf(t.index_name) !== -1;
+                    }).filter(Boolean).length).to.be.equal(1);
+
+                });
+
+            });
+
+        });
 
     })
 

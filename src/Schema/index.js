@@ -35,8 +35,8 @@ export type SchemaFieldDescription = {
 
     primary_key?:bool,
     clustering_key?:bool,
-    secondary_index?:bool,
-    // unique?:Boolean, // would need setting key accordingly (complicated in generic cases?)
+    secondary_index?:bool|{include?:Array<String>, clustering_order?:{ [key:String]: "asc"|"desc" }},
+    unique?:bool,
 
     lowercase?:bool,
     uppercase?:bool,
@@ -65,7 +65,7 @@ export type SchemaOptions = {
     clustering_order?:{
         [key:String]: "asc"|"desc"
     },
-    indexes?:Array<String|{indexed:Array<String>, include:Array<String>}>,
+    indexes?:Array<String|{indexed:Array<String>, include?:Array<String>, clustering_order?:{ [key:String]: "asc"|"desc" }}>,
     unique?:Array<String|{indexed:Array<String>}>,
 
     expressCassandraOpts?: Object
@@ -588,8 +588,11 @@ class Schema {
         if(sf.clustering_key){
             clustering_key.push(k);
         }
-        if(sf.secondary_index){
+        if(sf.secondary_index === true){
             secondary_index.push(k);
+        }
+        else if(typeof(sf.secondary_index) === "object"){
+            secondary_index.push({...sf.secondary_index, indexed: [k]});
         }
         if(sf.unique === true){
             unique_index.push(k);
@@ -847,6 +850,7 @@ class Schema {
 
 
         let indexes = [];
+        let ycql_indexes = [];
         if(this.options.indexes){
             if(Array.isArray(this.options.indexes) && this.options.indexes.length){
                 indexes = this.options.indexes;
@@ -858,6 +862,9 @@ class Schema {
         else{
             indexes = secondary_index;
         }
+        ycql_indexes = indexes.filter(idx => typeof(idx) !== "string");
+        indexes = indexes.filter(idx => typeof(idx) === "string");
+
 
         let unique = [];
         if(this.options.unique){
@@ -883,6 +890,7 @@ class Schema {
             
             key,
             indexes,
+            ycql_indexes,
             unique,
             
             methods,
