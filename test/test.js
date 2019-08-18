@@ -22,81 +22,96 @@ const cassandra = MakeCadoose({
     migration: 'safe',
 });
 
+const tableNames = [];
+const newTableName = () => {
+    tableNames.push(`table${tableNames.length}_${new Date().getTime().toString()}`);
+    return tableNames[tableNames.length-1];
+}
+const currentTableName = () => {
+    if(tableNames.length){
+        return tableNames[tableNames.length-1];
+    }
+    return newTableName();
+}
+
 describe("Cadoose", () => {
 
-    afterEach(async () => {
-        for(const table in cassandra.instance){
-            if(cassandra.instance[table] && cassandra.schemas[table]){
-                const tablename = cassandra.schemas[table].options.table_name || table;
+    after(() => {
+        return new Promise(async (final_resolve, final_reject) => {
+            for(const table in cassandra.instance){
+                if(cassandra.instance[table] && cassandra.schemas[table]){
+                    const tablename = cassandra.schemas[table].options.table_name || table;
 
-                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${tablename}'`;
-                const column_indexes = await new Promise((rs,rj) => {
-                    cassandra.instance[table].execute_query(queryIndexes, null, function(err, res){
-                        if(err){
-                            rj(err);
-                        }
-                        else{
-                            rs(res.rows);
-                        }
-                    });
-                });
-
-                const queryUDTs = `SELECT type_name FROM system_schema.types WHERE keyspace_name='main'`;
-                const column_udts = await new Promise((rs,rj) => {
-                    cassandra.instance[table].execute_query(queryUDTs, null, function(err, res){
-                        if(err){
-                            rj(err);
-                        }
-                        else{
-                            rs(res.rows);
-                        }
-                    });
-                });
-
-                await Promise.all(column_indexes.map(t => {
-                    return new Promise((rs, rj) => {
-                        cassandra.instance[table].execute_query(`DROP INDEX IF EXISTS "${t.index_name}"`, null, function(err, res){
+                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${tablename}'`;
+                    const column_indexes = await new Promise((rs,rj) => {
+                        cassandra.instance[table].execute_query(queryIndexes, null, function(err, res){
                             if(err){
-                                rj();
+                                rj(err);
                             }
                             else{
-                                rs();
+                                rs(res.rows);
                             }
-                        }); 
+                        });
                     });
-                }));
 
-                await Promise.all(column_udts.map(t => {
-                    return new Promise((rs, rj) => {
-                        cassandra.instance[table].execute_query(`DROP TYPE IF EXISTS "${t.type_name}"`, null, function(err, res){
+                    const queryUDTs = `SELECT type_name FROM system_schema.types WHERE keyspace_name='main'`;
+                    const column_udts = await new Promise((rs,rj) => {
+                        cassandra.instance[table].execute_query(queryUDTs, null, function(err, res){
                             if(err){
-                                rj();
+                                rj(err);
                             }
                             else{
-                                rs();
+                                rs(res.rows);
                             }
-                        }); 
+                        });
                     });
-                }));
-                
-                await new Promise((resolve, reject) => {
-                    cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
-                        if(err){
-                            reject(err);
-                        }
-                        else{
-                            resolve(res);
-                        }
-                    });
-                })
+
+                    await Promise.all(column_indexes.map(t => {
+                        return new Promise((rs, rj) => {
+                            cassandra.instance[table].execute_query(`DROP INDEX IF EXISTS "${t.index_name}"`, null, function(err, res){
+                                if(err){
+                                    rj();
+                                }
+                                else{
+                                    rs();
+                                }
+                            }); 
+                        });
+                    }));
+
+                    await Promise.all(column_udts.map(t => {
+                        return new Promise((rs, rj) => {
+                            cassandra.instance[table].execute_query(`DROP TYPE IF EXISTS "${t.type_name}"`, null, function(err, res){
+                                if(err){
+                                    rj();
+                                }
+                                else{
+                                    rs();
+                                }
+                            }); 
+                        });
+                    }));
+                    
+                    await new Promise((resolve, reject) => {
+                        cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
+                            if(err){
+                                reject(err);
+                            }
+                            else{
+                                resolve(res);
+                            }
+                        });
+                    })
+                }
             }
-        }
 
-        // await Promise.all(Object.keys(cassandra.instance).map(table => async () => {
-            
-        // }));
+            final_resolve();
+        });
     });
 
+    beforeEach(() => {
+        newTableName();
+    })
 
     describe("Two different approaches for registering+syncing a Model in the DB", () => {
 
@@ -114,7 +129,7 @@ describe("Cadoose", () => {
                 }
             }, {});
             
-            const Model = await CadooseModel.registerAndSync("primitives", s);
+            const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
             const a = new Model({
                 string: "string",
@@ -144,7 +159,7 @@ describe("Cadoose", () => {
                 }
             }, {});
             
-            const Model = CadooseModel.registerAndSyncDefered("primitives", s);
+            const Model = CadooseModel.registerAndSyncDefered(currentTableName(), s);
 
             await Model.undefer();
     
@@ -183,7 +198,7 @@ describe("Cadoose", () => {
                     }
                 }, {});
                 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
         
                 const a = new Model({
                     string: "string",
@@ -216,7 +231,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
@@ -252,7 +267,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = CadooseModel.registerAndSyncDefered("undefined_to_null", s);
+                const Model = CadooseModel.registerAndSyncDefered(currentTableName(), s);
 
                 await Model.undefer();
 
@@ -303,14 +318,14 @@ describe("Cadoose", () => {
                     });
                     const columnNames = ["string"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
                     const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -346,14 +361,14 @@ describe("Cadoose", () => {
                     });
                     const columnNames = ["string"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
                     const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -391,14 +406,14 @@ describe("Cadoose", () => {
                     });
                     const columnNames = ["string","number"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
                     const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -434,14 +449,14 @@ describe("Cadoose", () => {
                     });
                     const columnNames = ["string","number"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -480,14 +495,14 @@ describe("Cadoose", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -527,14 +542,14 @@ describe("Cadoose", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -581,14 +596,14 @@ describe("Cadoose", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number", "bool"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -632,14 +647,14 @@ describe("Cadoose", () => {
                     const columnNamesPrimary = ["string"];
                     const columnNamesClustering = ["number", "bool"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -690,14 +705,14 @@ describe("Cadoose", () => {
                     const columnNamesPrimary = ["string", "number"];
                     const columnNamesClustering = ["bool", "some_prop"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -745,14 +760,14 @@ describe("Cadoose", () => {
                     const columnNamesPrimary = ["string", "number"];
                     const columnNamesClustering = ["bool", "some_prop"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(query, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -794,14 +809,14 @@ describe("Cadoose", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -817,9 +832,9 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_indexes = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -830,7 +845,7 @@ describe("Cadoose", () => {
                     });
                     
                     column_indexes.forEach(t => {
-                        expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                        expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     });
                 });
 
@@ -859,14 +874,14 @@ describe("Cadoose", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number","some_prop"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -882,9 +897,9 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_indexes = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -895,7 +910,7 @@ describe("Cadoose", () => {
                     });
                     
                     column_indexes.forEach(t => {
-                        expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                        expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     });
                 });
 
@@ -921,14 +936,14 @@ describe("Cadoose", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -944,9 +959,9 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_indexes = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -957,7 +972,7 @@ describe("Cadoose", () => {
                     });
                     
                     column_indexes.forEach(t => {
-                        expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                        expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     });
                 });
                 it("Multiple fields with 'secondary_index' set to true are indexed in the Secondary Index (set with options.indexes)", async () => {
@@ -985,14 +1000,14 @@ describe("Cadoose", () => {
                     const columnNamesKey = ["string"];
                     const columnNamesIndex = ["number","some_prop"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -1008,9 +1023,9 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_indexes = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -1021,7 +1036,7 @@ describe("Cadoose", () => {
                     });
                     
                     column_indexes.forEach(t => {
-                        expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                        expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     });
                 });
 
@@ -1052,14 +1067,14 @@ describe("Cadoose", () => {
                     const columnNamesCKey = ["number"];
                     const columnNamesIndex = ["number","some_prop"];
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
     
-                    const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_types = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -1080,9 +1095,9 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                     const column_indexes = await new Promise((resolve,reject) => {
-                        cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                        cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                             if(err){
                                 reject(err);
                             }
@@ -1093,7 +1108,7 @@ describe("Cadoose", () => {
                     });
                     
                     column_indexes.forEach(t => {
-                        expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                        expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     });
                 });
 
@@ -1120,7 +1135,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     expect(a.saveAsync()).to.eventually.be.rejectedWith(/Required Field/);
@@ -1148,7 +1163,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         bool: true
@@ -1179,7 +1194,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         bool: true
@@ -1210,7 +1225,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         bool: true
@@ -1241,7 +1256,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         bool: true
@@ -1273,7 +1288,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1301,10 +1316,10 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
-                        string: "MUHAHAHA-NOT:MATCHING"
+                        string: "NOT:MATCHING"
                     });
                     return expect(a.saveAsync()).to.be.eventually.rejected;
 
@@ -1333,7 +1348,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1361,7 +1376,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         number: 200
@@ -1393,7 +1408,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1421,7 +1436,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1449,7 +1464,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1479,7 +1494,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1507,7 +1522,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1535,7 +1550,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1565,7 +1580,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1593,7 +1608,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1621,7 +1636,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1651,7 +1666,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1679,7 +1694,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.fulfilled;
@@ -1707,7 +1722,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     return expect(a.saveAsync()).to.be.eventually.rejected;
@@ -1741,7 +1756,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1779,7 +1794,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1816,7 +1831,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1853,7 +1868,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1891,7 +1906,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1929,7 +1944,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -1967,7 +1982,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -2008,13 +2023,8 @@ describe("Cadoose", () => {
                             default: false
                         }
                     });
-                    s.statics = {
-                        hallo:() => {
-                            throw new Error("Hallo!");
-                        }
-                    }
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model();
                     await a.saveAsync();
@@ -2048,7 +2058,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2085,7 +2095,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2124,7 +2134,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2162,7 +2172,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2200,7 +2210,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2238,7 +2248,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2277,7 +2287,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string",
@@ -2316,7 +2326,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "SOME-DEFAULT-STRING-TO-LOWER-CASE"
@@ -2348,7 +2358,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "some-default-string-to-upper-case"
@@ -2380,7 +2390,7 @@ describe("Cadoose", () => {
                         }
                     });
     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
     
                     const a = new Model({
                         string: "   some-default-string   "
@@ -2414,7 +2424,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("date_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const d = new Date(Date.now() - 24*60*60*1000);
 
@@ -2447,7 +2457,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("buffer_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const b = new Buffer("some suuuuper long string buffer read from some file");
 
@@ -2481,7 +2491,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("array_list_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const l = ["item1", "item2", "item3", "item4", "item5"];
 
@@ -2514,7 +2524,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const l = new Set(["item1", "item2", "item3", "item4", "item5"]);
                     const larr = [...l];
@@ -2546,7 +2556,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const l = new Set(["item1", "item2", "item3", "item4", "item5"]);
                     const larr = [...l];
@@ -2577,7 +2587,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const l = ["item1", "item2", "item3", "item4", "item5"];
 
@@ -2608,7 +2618,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("set_type", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const l = ["item1", "item2", "item3", "item4", "item5"];
 
@@ -2642,7 +2652,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("map_type_text_text", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const map = new Map(String,String).set({
                         prop1: "val1",
@@ -2678,7 +2688,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("map_type_text_float", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const map = new Map(String, Number).set({
                         prop1: 100,
@@ -2714,7 +2724,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("map_type_text_bool", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const map = new Map(String, Boolean).set({
                         prop1: true,
@@ -2750,7 +2760,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("map_type_text_date", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     let d1 = new Date(), d2 = new Date(Date.now() - 24*60*60*1000), d3 = new Date(Date.now() + 24*60*60*1000);
 
@@ -2788,7 +2798,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("map_type_text_blob", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     let b1 = new Buffer("b1"), b2 = new Buffer("b2"), b3 = new Buffer("b3");
 
@@ -2826,7 +2836,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const Model = await CadooseModel.registerAndSync("map_type_text_list_text", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                     const map1 = new Map(String, Buffer).set({
                         prop1: ["list_1"],
@@ -2876,7 +2886,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = await CadooseModel.registerAndSync("nested_props1", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -2930,7 +2940,7 @@ describe("Cadoose", () => {
                 });
                 const columnNames = ["info.name", "info.surname"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props2", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -2963,9 +2973,9 @@ describe("Cadoose", () => {
                 expect(aa.info.surname).to.be.equal("someSurname");
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props2'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props2"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3006,7 +3016,7 @@ describe("Cadoose", () => {
                 const columnNamesPK = ["info.name", "info.surname"];
                 const columnNamesCK = ["info.some_super_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props3", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3045,9 +3055,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props3'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props3"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3096,7 +3106,7 @@ describe("Cadoose", () => {
                 const columnNamesCK = ["info.some_super_prop"];
                 const columnNamesIDX = ["infosome_indexed_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props4", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3135,9 +3145,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props4'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props4"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3157,9 +3167,9 @@ describe("Cadoose", () => {
                 });
 
 
-                const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='nested_props4'";
+                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props4"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3170,7 +3180,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIDX.map(n => `nested_props4_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIDX.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                 });
             });
 
@@ -3200,7 +3210,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = await CadooseModel.registerAndSync("nested_props5", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3271,7 +3281,7 @@ describe("Cadoose", () => {
                 });
                 const columnNames = ["info.subinfo.name", "info.subinfo.surname"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props6", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3316,9 +3326,9 @@ describe("Cadoose", () => {
                 expect(aa.info.infoname).to.be.equal("someInfoname");
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props6'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props6"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3364,7 +3374,7 @@ describe("Cadoose", () => {
                 const columnNamesPK = ["info.subinfo.name", "info.subinfo.surname"];
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props7", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3415,9 +3425,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props7'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props7"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3471,7 +3481,7 @@ describe("Cadoose", () => {
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
                 const columnNamesIDX = ["infosubinfosome_indexed_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props_8", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: { 
@@ -3527,9 +3537,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props8'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props_8"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3549,9 +3559,9 @@ describe("Cadoose", () => {
                 });
 
 
-                const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='nested_props8'";
+                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props_8"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3562,7 +3572,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIDX.map(n => `nested_props_8_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIDX.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                 });
             });
 
@@ -3591,7 +3601,7 @@ describe("Cadoose", () => {
                     }
                 },{name:"nested_props1"});
 
-                const Model = await CadooseModel.registerAndSync("nested_props1", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3646,7 +3656,7 @@ describe("Cadoose", () => {
                 });
                 const columnNames = ["info.name", "info.surname"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props2", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3679,9 +3689,9 @@ describe("Cadoose", () => {
                 expect(aa.info.surname).to.be.equal("someSurname");
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props2'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props2"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3723,7 +3733,7 @@ describe("Cadoose", () => {
                 const columnNamesPK = ["info.name", "info.surname"];
                 const columnNamesCK = ["info.some_super_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props3", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3762,9 +3772,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props3'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props3"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3814,7 +3824,7 @@ describe("Cadoose", () => {
                 const columnNamesCK = ["info.some_super_prop"];
                 const columnNamesIDX = ["infosome_indexed_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props4", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3853,9 +3863,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props4'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props4"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3875,9 +3885,9 @@ describe("Cadoose", () => {
                 });
 
 
-                const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='nested_props4'";
+                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props4"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -3888,7 +3898,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIDX.map(n => `nested_props4_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIDX.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                 });
             });
 
@@ -3920,7 +3930,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = await CadooseModel.registerAndSync("nested_props5", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -3993,7 +4003,7 @@ describe("Cadoose", () => {
                 });
                 const columnNames = ["info.subinfo.name", "info.subinfo.surname"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props6", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -4038,9 +4048,9 @@ describe("Cadoose", () => {
                 expect(aa.info.infoname).to.be.equal("someInfoname");
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props6'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props6"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -4088,7 +4098,7 @@ describe("Cadoose", () => {
                 const columnNamesPK = ["info.subinfo.name", "info.subinfo.surname"];
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props7", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: {
@@ -4139,9 +4149,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props7'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props7"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -4197,7 +4207,7 @@ describe("Cadoose", () => {
                 const columnNamesCK = ["info.subinfo.some_super_prop"];
                 const columnNamesIDX = ["infosubinfosome_indexed_prop"];
 
-                const Model = await CadooseModel.registerAndSync("nested_props8", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model({
                     info: { 
@@ -4253,9 +4263,9 @@ describe("Cadoose", () => {
                 expect(aa.some_prop).to.be.equal("somepropsvalue");
 
 
-                const query = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='nested_props8'";
+                const query = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props8"].execute_query(query, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(query, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -4275,9 +4285,9 @@ describe("Cadoose", () => {
                 });
 
 
-                const queryIndexes = "SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='nested_props8'";
+                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["nested_props8"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -4288,7 +4298,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIDX.map(n => `nested_props8_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIDX.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                 });
             });
 
@@ -4320,7 +4330,7 @@ describe("Cadoose", () => {
                     connections: [websocket]
                 });
 
-                const Model = await CadooseModel.registerAndSync("schema_in_array", user);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), user);
 
                 const l = [
                     {
@@ -4367,7 +4377,7 @@ describe("Cadoose", () => {
                     connections: [websocket]
                 });
 
-                const Model = await CadooseModel.registerAndSync("schema_in_set", user);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), user);
 
                 let l = [
                     {
@@ -4435,7 +4445,7 @@ describe("Cadoose", () => {
                     connections: new Set([websocket])
                 });
 
-                const Model = await CadooseModel.registerAndSync("schema_in_set", user);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), user);
 
                 const l = [
                     {
@@ -4482,7 +4492,7 @@ describe("Cadoose", () => {
                     connections: new Set([websocket])
                 });
 
-                const Model = await CadooseModel.registerAndSync("schema_in_set", user);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), user);
 
                 const l = [
                     {
@@ -4545,7 +4555,7 @@ describe("Cadoose", () => {
                 }
             });
 
-            const Model = await CadooseModel.registerAndSync("select_in_tests", s);
+            const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
             const rnd = [];
 
@@ -4595,7 +4605,7 @@ describe("Cadoose", () => {
                     }
                 }
                 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
         
                 const a = new Model({
                     string: "string",
@@ -4632,7 +4642,7 @@ describe("Cadoose", () => {
                     }
                 }
                 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
         
                 const a = new Model({
                     string: "string",
@@ -4670,7 +4680,7 @@ describe("Cadoose", () => {
                         }
                     }, {});
                     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
             
                     const a = await Model.create({
                         string: "string",
@@ -4703,7 +4713,7 @@ describe("Cadoose", () => {
                         }
                     }, {});
                     
-                    const Model = await CadooseModel.registerAndSync("primitives", s);
+                    const Model = await CadooseModel.registerAndSync(currentTableName(), s);
             
                     const arr = await Model.create({
                         string: "string",
@@ -4755,7 +4765,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
 
                     const chatroomSchema = new Schema({
                         name: {
@@ -4763,11 +4773,11 @@ describe("Cadoose", () => {
                             primary_key: true
                         },
                         admin: {
-                            ref: "User"
+                            ref: currentTableName()
                         }
                     });
 
-                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
 
                     const user1 = new User({
                         id: "someuserid",
@@ -4815,7 +4825,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
 
                     const chatroomSchema = new Schema({
                         name: {
@@ -4823,11 +4833,11 @@ describe("Cadoose", () => {
                             primary_key: true
                         },
                         admin: {
-                            ref: "User"
+                            ref: currentTableName()
                         }
                     });
 
-                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
 
                     const user1 = new User({
                         id: "someuserid",
@@ -4881,7 +4891,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
 
                     const chatroomSchema = new Schema({
                         name: {
@@ -4889,11 +4899,11 @@ describe("Cadoose", () => {
                             primary_key: true
                         },
                         admin: {
-                            ref: "User"
+                            ref: currentTableName()
                         }
                     });
 
-                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
 
                     const user1 = new User({
                         id: "someuserid",
@@ -4941,7 +4951,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
 
                     const chatroomSchema = new Schema({
                         name: {
@@ -4949,11 +4959,11 @@ describe("Cadoose", () => {
                             primary_key: true
                         },
                         users: [
-                            {ref: "User"}
+                            {ref: currentTableName()}
                         ]
                     });
 
-                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
 
                     const users = [1,2,3,4,5,6,7,8,9].map(v => {
                         return new User({
@@ -5009,7 +5019,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
 
                     const chatroomSchema = new Schema({
                         name: {
@@ -5017,11 +5027,11 @@ describe("Cadoose", () => {
                             primary_key: true
                         },
                         users: [
-                            {ref: "User"}
+                            {ref: currentTableName()}
                         ]
                     });
 
-                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
 
                     const users = [1,2,3,4,5,6,7,8,9].map(v => {
                         return new User({
@@ -5083,7 +5093,7 @@ describe("Cadoose", () => {
                         }
                     });
 
-                    const User = await CadooseModel.registerAndSync("User", userSchema, "users");
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
 
                     const chatroomSchema = new Schema({
                         name: {
@@ -5091,11 +5101,11 @@ describe("Cadoose", () => {
                             primary_key: true
                         },
                         users: [
-                            {ref: "User"}
+                            {ref: currentTableName()}
                         ]
                     });
 
-                    const Chatroom = await CadooseModel.registerAndSync("Chatroom", chatroomSchema, "rooms");
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
 
                     const users = [1,2,3,4,5,6,7,8,9].map(v => {
                         return new User({
@@ -5164,7 +5174,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = await CadooseModel.registerAndSync("jsonb_tests", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const someGenericObject = {
                     attr0: 0,
@@ -5216,7 +5226,7 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const Model = await CadooseModel.registerAndSync("jsonb_tests", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const obj1 = {
                     meta: {
@@ -5283,14 +5293,14 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5306,9 +5316,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5319,7 +5329,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     expect(t.is_unique).to.be.equal(true);
                 });
             });
@@ -5349,14 +5359,14 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number","some_prop"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5372,9 +5382,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5385,7 +5395,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     expect(t.is_unique).to.be.equal(true);
                 });
             });
@@ -5412,14 +5422,14 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5435,9 +5445,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5448,7 +5458,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     expect(t.is_unique).to.be.equal(true);
                 });
             });
@@ -5478,14 +5488,14 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number","some_prop"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5501,9 +5511,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5514,7 +5524,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     expect(t.is_unique).to.be.equal(true);
                 });
             });
@@ -5546,14 +5556,14 @@ describe("Cadoose", () => {
                 const columnNamesCKey = ["number"];
                 const columnNamesIndex = ["number","some_prop"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5574,9 +5584,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5587,7 +5597,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(columnNamesIndex.map(n => `primitives_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_unique`).indexOf(t.index_name) !== -1).to.be.equal(true);
                     expect(t.is_unique).to.be.equal(true);
                 });
             });
@@ -5620,14 +5630,14 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number","some_prop"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5643,9 +5653,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, is_unique FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5656,7 +5666,7 @@ describe("Cadoose", () => {
                 });
                 
                 column_indexes.forEach(t => {
-                    expect(`primitives_${columnNamesIndex.join("_")}_unique`.indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(`${currentTableName()}_${columnNamesIndex.join("_")}_unique`.indexOf(t.index_name) !== -1).to.be.equal(true);
                     expect(t.is_unique).to.be.equal(true);
                 });
             });
@@ -5686,14 +5696,18 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                await new Promise(rs => {
+                    setTimeout(() => {rs()}, 2000);
+                });
+
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5709,9 +5723,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5728,7 +5742,7 @@ describe("Cadoose", () => {
                     include.forEach(v => {
                         expect(["bool"]).to.include(v);
                     });
-                    expect(columnNamesIndex.map(n => `primitives_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
+                    expect(columnNamesIndex.map(n => `${currentTableName()}_${n}_idx`).indexOf(t.index_name) !== -1).to.be.equal(true);
                 });
 
             });
@@ -5767,14 +5781,18 @@ describe("Cadoose", () => {
                     "number2": ["bool2"]
                 };
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                await new Promise(rs => {
+                    setTimeout(() => {rs()}, 2000);
+                });
+
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5790,9 +5808,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5818,7 +5836,7 @@ describe("Cadoose", () => {
                     expect(hasincludes.filter(Boolean).length).to.be.equal(1);
 
                     expect(column_indexes.map(t => {
-                        return `primitives_${c}_idx`.indexOf(t.index_name) !== -1;
+                        return `${currentTableName()}_${c}_idx`.indexOf(t.index_name) !== -1;
                     }).filter(Boolean).length).to.be.equal(1);
 
                 });
@@ -5850,14 +5868,18 @@ describe("Cadoose", () => {
                 const columnNamesKey = ["string"];
                 const columnNamesIndex = ["number", "bool"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                await new Promise(rs => {
+                    setTimeout(() => {rs()}, 2000);
+                });
+
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5873,9 +5895,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5929,14 +5951,18 @@ describe("Cadoose", () => {
                 const columnNamesIndex = ["number", "bool"];
                 const columnNamesIndex2 = ["number2", "bool2"];
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                await new Promise(rs => {
+                    setTimeout(() => {rs()}, 2000);
+                });
+
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5952,9 +5978,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -5966,7 +5992,7 @@ describe("Cadoose", () => {
                 
                 expect(column_indexes.length).to.be.equal(2);
 
-                const idx1 = column_indexes.filter(c => c.index_name === "primitives_number_bool_idx")[0];
+                const idx1 = column_indexes.filter(c => c.index_name === `${currentTableName()}_number_bool_idx`)[0];
                 expect(idx1.options).to.have.property("target");
                 expect(
                     idx1.options.target.replace(" ","").split(",").map(t =>
@@ -5974,7 +6000,7 @@ describe("Cadoose", () => {
                     ).filter(Boolean).length
                 ).to.be.equal(columnNamesIndex.length);
 
-                const idx2 = column_indexes.filter(c => c.index_name === "primitives_number2_bool2_idx")[0];
+                const idx2 = column_indexes.filter(c => c.index_name === `${currentTableName()}_number2_bool2_idx`)[0];
                 expect(idx2.options).to.have.property("target");
                 expect(
                     idx2.options.target.replace(" ","").split(",").map(t =>
@@ -6018,14 +6044,18 @@ describe("Cadoose", () => {
                     "number2": ["bool2"]
                 };
 
-                const Model = await CadooseModel.registerAndSync("primitives", s);
+                const Model = await CadooseModel.registerAndSync(currentTableName(), s);
 
                 const a = new Model();
                 await a.saveAsync();
 
-                const queryColumns = "SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='primitives'";
+                await new Promise(rs => {
+                    setTimeout(() => {rs()}, 2000);
+                });
+
+                const queryColumns = `SELECT column_name, kind FROM system_schema.columns WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_types = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryColumns, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryColumns, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -6041,9 +6071,9 @@ describe("Cadoose", () => {
                     }
                 });
 
-                const queryIndexes = "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='primitives'";
+                const queryIndexes = `SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${currentTableName()}'`;
                 const column_indexes = await new Promise((resolve,reject) => {
-                    cassandra.instance["primitives"].execute_query(queryIndexes, null, function(err, res){
+                    cassandra.instance[currentTableName()].execute_query(queryIndexes, null, function(err, res){
                         if(err){
                             reject(err);
                         }
@@ -6069,7 +6099,7 @@ describe("Cadoose", () => {
                     expect(hasincludes.filter(Boolean).length).to.be.equal(1);
 
                     expect(column_indexes.map(t => {
-                        return `primitives_${c}_idx`.indexOf(t.index_name) !== -1;
+                        return `${currentTableName()}_${c}_idx`.indexOf(t.index_name) !== -1;
                     }).filter(Boolean).length).to.be.equal(1);
 
                 });
