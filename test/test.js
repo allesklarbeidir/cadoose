@@ -36,26 +36,27 @@ const currentTableName = () => {
 
 describe("Cadoose", () => {
 
-    after(() => {
-        return new Promise(async (final_resolve, final_reject) => {
-            for(const table in cassandra.instance){
-                if(cassandra.instance[table] && cassandra.schemas[table]){
-                    const tablename = cassandra.schemas[table].options.table_name || table;
+    after((done) => {
+        const promises = [];
 
-                    const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${tablename}'`;
-                    const column_indexes = await new Promise((rs,rj) => {
-                        cassandra.instance[table].execute_query(queryIndexes, null, function(err, res){
-                            if(err){
-                                rj(err);
-                            }
-                            else{
-                                rs(res.rows);
-                            }
-                        });
+        for(const table in cassandra.instance){
+            if(cassandra.instance[table] && cassandra.schemas[table]){
+                const tablename = cassandra.schemas[table].options.table_name || table;
+
+                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${tablename}'`;
+                const pr = new Promise((rs,rj) => {
+                    cassandra.instance[table].execute_query(queryIndexes, null, function(err, res){
+                        if(err){
+                            rj(err);
+                        }
+                        else{
+                            rs(res.rows);
+                        }
                     });
+                }).then(column_indexes => {
 
                     const queryUDTs = `SELECT type_name FROM system_schema.types WHERE keyspace_name='main'`;
-                    const column_udts = await new Promise((rs,rj) => {
+                    new Promise((rs,rj) => {
                         cassandra.instance[table].execute_query(queryUDTs, null, function(err, res){
                             if(err){
                                 rj(err);
@@ -64,49 +65,59 @@ describe("Cadoose", () => {
                                 rs(res.rows);
                             }
                         });
+                    }).then(column_udts => {
+
+                        Promise.all(column_indexes.map(t => {
+                            return new Promise((rs, rj) => {
+                                cassandra.instance[table].execute_query(`DROP INDEX IF EXISTS "${t.index_name}"`, null, function(err, res){
+                                    if(err){
+                                        rj();
+                                    }
+                                    else{
+                                        rs();
+                                    }
+                                }); 
+                            });
+                        })).then(_ => {
+
+                            Promise.all(column_udts.map(t => {
+                                return new Promise((rs, rj) => {
+                                    cassandra.instance[table].execute_query(`DROP TYPE IF EXISTS "${t.type_name}"`, null, function(err, res){
+                                        if(err){
+                                            rj();
+                                        }
+                                        else{
+                                            rs();
+                                        }
+                                    }); 
+                                });
+                            })).then(_ => {
+
+                                new Promise((resolve, reject) => {
+                                    cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
+                                        if(err){
+                                            reject(err);
+                                        }
+                                        else{
+                                            resolve(res);
+                                        }
+                                    });
+                                })
+
+                            });
+
+                        });
+
                     });
 
-                    await Promise.all(column_indexes.map(t => {
-                        return new Promise((rs, rj) => {
-                            cassandra.instance[table].execute_query(`DROP INDEX IF EXISTS "${t.index_name}"`, null, function(err, res){
-                                if(err){
-                                    rj();
-                                }
-                                else{
-                                    rs();
-                                }
-                            }); 
-                        });
-                    }));
+                });
 
-                    await Promise.all(column_udts.map(t => {
-                        return new Promise((rs, rj) => {
-                            cassandra.instance[table].execute_query(`DROP TYPE IF EXISTS "${t.type_name}"`, null, function(err, res){
-                                if(err){
-                                    rj();
-                                }
-                                else{
-                                    rs();
-                                }
-                            }); 
-                        });
-                    }));
-                    
-                    await new Promise((resolve, reject) => {
-                        cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
-                            if(err){
-                                reject(err);
-                            }
-                            else{
-                                resolve(res);
-                            }
-                        });
-                    })
-                }
+                promises.push(pr);                
             }
+        }
 
-            final_resolve();
-        });
+        Promise.all(promises).then(_ => done()).catch(_ => done())
+
     });
 
     beforeEach(() => {
