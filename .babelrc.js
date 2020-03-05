@@ -19,5 +19,6 @@ module.exports = {
     ],
     "plugins": [
         "transform-class-properties",
+        "@babel/plugin-proposal-object-rest-spread"
     ].filter(Boolean)
 }
