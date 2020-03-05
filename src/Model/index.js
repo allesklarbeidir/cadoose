@@ -526,12 +526,13 @@ export const BindModelInstance = function(instanceValues, modelPrx){
 
     const uid = uuidv4();
     const modelInstance = new ModelInstance(uid, this, modelPrx);
-    _model_instances[uid] = modelInstance;
+    //_model_instances[uid] = modelInstance;
     _model_setter_memory[uid] = {};
 
     Object.defineProperty(this, "__$id", {
         get: function(){
-            return uid;
+            //return uid;
+            return modelInstance
         }
     });
 
@@ -582,7 +583,8 @@ export class ModelInstanceProxy extends Proxy {
         super(modelInstance, {
             get: (obj, prop) => {
 
-                const instance = _model_instances[obj["__$id"]];
+                // const instance = _model_instances[obj["__$id"]];
+                const instance = obj["__$id"];
 
                 if(instance){
                     if(typeof(instance[prop]) !== "undefined" || (typeof(obj[prop]) === "undefined" && instance[prop])){
@@ -599,7 +601,8 @@ export class ModelInstanceProxy extends Proxy {
             },
             set: (obj, prop, value) => {
 
-                const instance = _model_instances[obj["__$id"]];
+                // const instance = _model_instances[obj["__$id"]];
+                const instance = obj["__$id"];
 
                 if(instance){
                     if(
