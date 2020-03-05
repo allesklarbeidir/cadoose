@@ -19,6 +19,11 @@ module.exports = {
     ],
     "plugins": [
         "transform-class-properties",
-        "@babel/plugin-proposal-object-rest-spread"
+        "@babel/plugin-proposal-object-rest-spread",
+        "@babel/plugin-transform-classes",
+        ["@babel/plugin-transform-async-to-generator", {
+            "module": "bluebird",
+            "method": "coroutine"
+        }]
     ].filter(Boolean)
 }
