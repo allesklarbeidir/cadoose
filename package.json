@@ -13,7 +13,7 @@
     },
     "dependencies": {
         "bluebird": "^3.5.5",
-        "express-cassandra": "allesklarbeidir/express-cassandra",
+        "express-cassandra": "allesklarbeidir/express-cassandra#no-dse-driver",
         "harmony-reflect": "^1.6.1",
         "lodash": "^4.17.11",
         "util": "^0.12.0",
