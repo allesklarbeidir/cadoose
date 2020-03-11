@@ -11,15 +11,7 @@ import JSONB from "./SpecialTypes/JSONB";
 const Proxy = global.Proxy;
 Proxy.prototype = {};
 
-let dseDriver;
-try {
-  // eslint-disable-next-line import/no-extraneous-dependencies, import/no-unresolved
-  dseDriver = require('dse-driver');
-} catch (e) {
-  dseDriver = null;
-}
-
-const cql = Promise.promisifyAll(dseDriver || require('cassandra-driver'));
+const cql = Promise.promisifyAll(require('cassandra-driver'));
 
 export const CADOOSE = {
     ExpressCassandra:ExpressCassandra
