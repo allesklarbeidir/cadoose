@@ -75,9 +75,9 @@ export type expressCassandraModelType = {
     toJSON: () => Object,
     isModified: () => bool
 };
-export type FusedModelType = expressCassandraModelType&Model;
-export type FusedModelTypeDefered = expressCassandraModelType&Model&{
-    undefer: (forceSync:bool) => Promise<FusedModelType>
+export type FusedModelType<T> = expressCassandraModelType&Model&T;
+export type FusedModelTypeDefered<T> = expressCassandraModelType&Model&{
+    undefer: (forceSync:bool) => Promise<FusedModelType<T>>
 };
 //#endregion
 
@@ -89,7 +89,7 @@ export class Model{
     _schema:ExtendedSchemaDescription = {}
     Model:any = null
 
-    static async registerAndSync(name, schema, tablename):Promise<FusedModelType>{
+    static async registerAndSync<T>(name, schema, tablename):Promise<FusedModelType<T>>{
         if(tablename){
             schema.options.table_name = tablename;
         }
@@ -98,7 +98,7 @@ export class Model{
         
         return MyModel;
     }
-    static registerAndSyncDefered(name, schema, tablename):FusedModelTypeDefered{
+    static registerAndSyncDefered<T>(name, schema, tablename):FusedModelTypeDefered<T>{
         if(tablename){
             schema.options.table_name = tablename;
         }
