@@ -36,89 +36,84 @@ const currentTableName = () => {
 
 describe("Cadoose", () => {
 
-    after((done) => {
-        const promises = [];
+    after(async () => {
 
-        for(const table in cassandra.instance){
-            if(cassandra.instance[table] && cassandra.schemas[table]){
-                const tablename = cassandra.schemas[table].options.table_name || table;
+        // console.log("Cleaning up database after tests.")
+        
+        await new Promise(async (resolve, reject) => {
+            cassandra._directClient.execute("SELECT table_name FROM system.partitions WHERE keyspace_name = 'main';", async (err, res) => {
+                if(err){
+                    reject(err)
+                }
+                
+                const dropPromises = [];
 
-                const queryIndexes = `SELECT index_name FROM system_schema.indexes WHERE keyspace_name='main' AND table_name='${tablename}'`;
-                const pr = new Promise((rs,rj) => {
-                    cassandra.instance[table].execute_query(queryIndexes, null, function(err, res){
-                        if(err){
-                            rj(err);
-                        }
-                        else{
-                            rs(res.rows);
-                        }
-                    });
-                }).then(column_indexes => {
+                // console.log(`Dropping ${res.rows.length} tables...`);
 
-                    const queryUDTs = `SELECT type_name FROM system_schema.types WHERE keyspace_name='main'`;
-                    new Promise((rs,rj) => {
-                        cassandra.instance[table].execute_query(queryUDTs, null, function(err, res){
-                            if(err){
-                                rj(err);
+                res.rows.forEach(row => {
+                    const t = row.table_name;
+
+                    dropPromises.push(new Promise((rs, rj) => {
+                        cassandra._directClient.execute(`DROP TABLE IF EXISTS ${t};`, (e, r) => {
+                            if(e){
+                                // console.log(`Error dropping table '${t}'`);
+                                rj(e);
                             }
                             else{
-                                rs(res.rows);
+                                // console.log(`Dropped table '${t}'`);
+                                rs(r)
                             }
                         });
-                    }).then(column_udts => {
-
-                        Promise.all(column_indexes.map(t => {
-                            return new Promise((rs, rj) => {
-                                cassandra.instance[table].execute_query(`DROP INDEX IF EXISTS "${t.index_name}"`, null, function(err, res){
-                                    if(err){
-                                        rj();
-                                    }
-                                    else{
-                                        rs();
-                                    }
-                                }); 
-                            });
-                        })).then(_ => {
-
-                            Promise.all(column_udts.map(t => {
-                                return new Promise((rs, rj) => {
-                                    cassandra.instance[table].execute_query(`DROP TYPE IF EXISTS "${t.type_name}"`, null, function(err, res){
-                                        if(err){
-                                            rj();
-                                        }
-                                        else{
-                                            rs();
-                                        }
-                                    }); 
-                                });
-                            })).then(_ => {
-
-                                new Promise((resolve, reject) => {
-                                    cassandra.instance[table].execute_query(`DROP TABLE IF EXISTS "${tablename}"`, null, function(err, res){
-                                        if(err){
-                                            reject(err);
-                                        }
-                                        else{
-                                            resolve(res);
-                                        }
-                                    });
-                                })
-
-                            });
-
-                        });
-
-                    });
-
+                    }));
                 });
 
-                promises.push(pr);                
-            }
-        }
+                for(let i = 0; i < dropPromises.length; i++){
+                    await dropPromises[i];
+                }
 
-        Promise.all(promises).then(_ => done()).catch(_ => done())
+                // console.log("dropped all tables");
+                resolve(true);
+            });
+        });
 
-    });
+        await new Promise(async (resolve, reject) => {
+            cassandra._directClient.execute("SELECT type_name FROM system_schema.types WHERE keyspace_name='main';", async (err, res) => {
+                if(err){
+                    reject(err)
+                }
+                
+                const dropPromises = [];
+
+                // console.log(`Dropping ${res.rows.length} types...`);
+
+                res.rows.forEach(row => {
+                    const t = row.type_name;
+
+                    dropPromises.push(new Promise((rs, rj) => {
+                        cassandra._directClient.execute(`DROP TYPE IF EXISTS ${t};`, (e, r) => {
+                            if(e){
+                                // console.log(`Error dropping type '${t}'`);
+                                rj(e);
+                            }
+                            else{
+                                // console.log(`Dropped type '${t}'`);
+                                rs(r)
+                            }
+                        });
+                    }));
+                });
+
+                for(let i = 0; i < dropPromises.length; i++){
+                    await dropPromises[i];
+                }
+
+                // console.log("dropped all types");
+                resolve(true);
+            });
+        });
+
+        
+    })
 
     beforeEach(() => {
         newTableName();

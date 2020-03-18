@@ -8,22 +8,13 @@ module.exports = {
             "@babel/preset-env",
             {
                 "targets": {
-                    "node": "8.10"
-                },
-                "shippedProposals": true,
-                "useBuiltIns": "usage",
-                "corejs": 2
+                    "node": "12.14.0"
+                }
             }
         ],
         "@babel/preset-flow"
     ],
     "plugins": [
-        "transform-class-properties",
-        "@babel/plugin-proposal-object-rest-spread",
-        "@babel/plugin-transform-classes",
-        ["@babel/plugin-transform-async-to-generator", {
-            "module": "bluebird",
-            "method": "coroutine"
-        }]
+        "transform-class-properties"
     ].filter(Boolean)
 }
