@@ -1,6 +1,6 @@
 {
     "name": "cadoose",
-    "version": "1.2.5",
+    "version": "1.2.6",
     "description": "A mongoose-like wrapper for Cassandra (and YugaByte YCQL). Using 'express-cassandra' in the background.",
     "main": "./lib/index.js",
     "author": "Sebastian Jerratsch <sebastian.jerratsch@gmail.com>",
