@@ -1,14 +1,14 @@
 {
     "name": "cadoose",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "A mongoose-like wrapper for Cassandra (and YugaByte YCQL). Using 'express-cassandra' in the background.",
     "main": "./lib/index.js",
     "author": "Sebastian Jerratsch <sebastian.jerratsch@gmail.com>",
     "license": "MIT",
     "scripts": {
         "flow": "flow",
-        "build": "./node_modules/.bin/babel src --out-dir lib",
-        "build-watch": "./node_modules/.bin/babel src --watch --out-dir lib",
+        "build": "./node_modules/.bin/babel src --out-dir lib --copy-files",
+        "build-watch": "./node_modules/.bin/babel src --watch --out-dir lib --copy-files",
         "test": "NODE_ENV=test mocha"
     },
     "dependencies": {

@@ -1,0 +1,21 @@
+// @flow
+
+export type JSONBPathBuilder = {
+    build(path:string, asJSON:bool):string,
+    
+    __$pathArr():string[],
+    __$asJSON():bool,
+
+    toString():string,
+
+
+}&Object;
+
+export type JSONB = {
+
+    path(fieldName:string, asJSON:bool):JSONBPathBuilder,
+
+    __$isJSONB:true
+
+
+}&Object;
