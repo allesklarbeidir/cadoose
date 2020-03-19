@@ -161,7 +161,7 @@ declare module.exports:{
 
 
     Schema:Class<Schema>,
-    Model:Class<Model>,
+    Model:Model,
 
     SpecialTypes: {
         Map: Map,
