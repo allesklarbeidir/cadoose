@@ -486,7 +486,7 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
         else if(s[k] && s[k].hasOwnProperty("ref") && !fromDB){
             const refschema = cadoose().schemas[s[k].ref];
             if(refschema){
-                const refkey = [].concat(...refschema.options.key);
+                const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
                 const makeRefMap = (refObj) => refkey.reduce((pv, cv) => {
                     pv[cv] = String(refObj[cv])
                     return pv;
