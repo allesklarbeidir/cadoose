@@ -661,7 +661,7 @@ class Schema {
                     else if(sf[_k].hasOwnProperty("ref") && typeof(sf[_k].ref) === "string"){
                         let refschema = cadoose().schemas[sf[_k].ref];
                         if(refschema){
-                            const refkey = [].concat(...refschema.options.key);
+                            const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
 
                             const cf = await makeField({
                                 type: Map,
