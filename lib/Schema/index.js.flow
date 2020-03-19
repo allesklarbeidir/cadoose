@@ -9,7 +9,7 @@ export type possibleValuesValues = string|number|bool|[]|typeof(Set)|Date|Object
 
 export type SchemaFieldDescription = {
 
-    type:possibleValuesTypes|possibleValueTypesCassandraPlainText|possibleValueTypesYugaByteYCQL,
+    type?:possibleValuesTypes|possibleValueTypesCassandraPlainText|possibleValueTypesYugaByteYCQL,
     of?:possibleValuesTypes,
     asArray?:bool,
     
