@@ -85,7 +85,7 @@ class Cadoose {
         }));
     }
 
-    async loadSchema(modelName:string, modelSchema:Schema):FusedModelType{
+    async loadSchema(modelName:string, modelSchema:Schema):Promise<FusedModelType>{
 
         this.schemas[modelName] = modelSchema;
 

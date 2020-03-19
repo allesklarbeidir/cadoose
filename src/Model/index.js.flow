@@ -1,0 +1,91 @@
+// @flow
+import type {
+    ExtendedSchemaDescription,
+    NestedSchemaDescription,
+    possibleValuesTypes,
+    possibleValuesValues,
+    possibleValueTypesCassandraPlainText,
+    possibleValueTypesYugaByteYCQL,
+    Schema,
+    SchemaDescription,
+    SchemaFieldDescription,
+    SchemaOptions,
+} from "../Schema";
+
+export type expressCassandraModelType = {
+    _validators?:Object,
+    _properties?:Object,
+    _driver?:Object,
+    _ready?:bool,
+    _modified?:Object,
+    _set_properties?: (properties:Object) => void,
+    _sync_model_definition?: (callback:Function) => void,
+    _sync_es_index?: (callback:Function) => void,
+    _sync_graph?: (callback:Function) => void,
+    _execute_table_query?: (callback:Function) => void,
+    get_find_query?: (queryObject:Object, options:Object) => {query:string, params:Array<any>},
+    get_table_name?: () => string,
+    get_keyspace_name?: () => string,
+    is_table_ready?: () => bool,
+    init?: (options:Object, callback:Function) => void,
+    syncDB?: (callback:Function) => void,
+    get_cql_client?: (callback:Function) => void,
+    get_es_client?: () => Object,
+    get_gremlin_client?: () => Object,
+    execute_query?: (...args:any[]) => void,
+    execute_batch?: (...args:any[]) => void,
+    execute_eachRow?: (...args:any[]) => void,
+    _execute_table_eachRow?: (query:string, params:Array<any>, options:Object, onReadable:Function, callback:Function) => void,
+    eachRow?: (queryObject:Object, options:Object, onReadable:Function, callback:Function) => void,
+    execute_stream?: (...args:any[]) => void,
+    _execute_table_stream?: (query:string, params:Array<any>, options:Object, onReadable:Function, callback:Function) => void,
+    stream?: (queryObject:Object, options:Object, onReadable:Function, callback:Function) => void,
+    _execute_gremlin_query?: (script:any, bindings:any, callback:Function) => void,
+    _execute_gremlin_script?: (script:any, bindings:any, callback:Function) => void,
+    createVertex?: (vertexProperties:any, callback:Function) => void,
+    getVertex?: (__vertexId:any, callback:Function) => void,
+    getVertex?: (__vertexId:any, callback:Function) => void,
+    updateVertex?: (__vertexId:any, vertexProperties:any, callback:Function) => void,
+    deleteVertex?: (__vertexId:any, callback:Function) => void,
+    createEdge?: (__edgeLabel:any, __fromVertexId:any, __toVertexId:any, edgeProperties:any, callback:Function) => void,
+    getEdge?: (__edgeId:any, callback:Function) => void,
+    updateEdge?: (__edgeId:any, edgeProperties:any, callback:Function) => void,
+    deleteEdge?: (__edgeId:any, callback:Function) => void,
+    graphQuery?: (query:any, params:any, callback:Function) => void,
+    search?: (queryObject:any, callback:Function) => void,
+    find?: (queryObject:any, options:any, callback:Function) => void,
+    findOne?: (queryObject:any, options:any, callback:Function) => void,
+    update?: (queryObject:any, updateValues:any, options:any, callback:Function) => void,
+    delete?: (queryObject:any, options:any, callback:Function) => void,
+    truncate?: (callback:Function) => void,
+    get_data_types?: () => Array<any>,
+    _get_default_value?: () => any,
+    validate?: (propertyName:string, value:any) => any,
+    save?: (options:Object, callback:Function) => Object,
+    delete?: (options:Object, callback:Function) => void,
+    toJSON?: () => Object,
+    isModified?: () => bool
+};
+export type FusedModelType_ANY = expressCassandraModelType&Model;
+export type FusedModelType<T> = expressCassandraModelType&Model&T;
+export type FusedModelTypeDefered<T> = expressCassandraModelType&Model&{
+    undefer?: (forceSync:bool) => Promise<FusedModelType<T>>
+};
+
+
+export type Model = {
+
+    _model?:expressCassandraModelType,
+    _name?:string,
+    _schema?:ExtendedSchemaDescription,
+    Model?:Model,
+
+    registerAndSync<T>(name:string, schema:Schema, tablename?:string):Promise<FusedModelType<T>>,
+    registerAndSyncDefered<T>(name:string, schema:Schema, tablename?:string):FusedModelTypeDefered<T>,
+
+    constructor(expressCassandraModel:expressCassandraModelType, schemaSchema:Schema):Model,
+
+    syncDB(callback:Function):void,
+    create<T>(...models:T[]):Promise<T[]>,
+
+}

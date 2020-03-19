@@ -1,0 +1,96 @@
+// @flow
+import type {Model} from "../Model"
+import type {Map} from "../SpecialTypes/Map"
+
+export type possibleValuesTypes = String|Number|Boolean|Array<*>|Set<*>|Date|Object|Buffer|Schema;
+export type possibleValueTypesCassandraPlainText = "ascii" | "bigint" | "blob" | "boolean" | "counter" | "date" | "decimal" | "double" | "float" | "inet" | "int" | "list" | "map" | "set" | "smallint" | "text" | "time" | "timestamp" | "timeuuid" | "tinyint" | "uuid" | "varchar" | "varint" | "frozen";
+export type possibleValueTypesYugaByteYCQL = "jsonb";
+export type possibleValuesValues = string|number|bool|[]|typeof(Set)|Date|Object|Buffer|Schema;
+
+export type SchemaFieldDescription = {
+
+    type:possibleValuesTypes|possibleValueTypesCassandraPlainText|possibleValueTypesYugaByteYCQL,
+    of?:possibleValuesTypes,
+    asArray?:bool,
+    
+    required?:bool,
+    
+    default?:possibleValuesValues|(model:Model, schema:Schema) => possibleValuesValues,
+    validate?:(value:possibleValuesValues|Model, model:Model, schema:Schema) => bool,
+    get?:(model:Model, schema:Schema) => possibleValuesValues|Model,
+    set?:(value:possibleValuesValues|Model, model:Model, schema:Schema) => void,
+    virtual?:bool,
+
+    primary_key?:bool,
+    clustering_key?:bool,
+    secondary_index?:bool|{include?:Array<String>, clustering_order?:{ [key:String]: "asc"|"desc" }},
+    unique?:bool,
+
+    lowercase?:bool,
+    uppercase?:bool,
+    trim?:bool,
+    match?:RegExp,
+    enum?:Array<*>,
+    minlength?:number,
+    maxlength?:number,
+
+    min?:number|Date|() => number|Date,
+    max?:number|Date|() => number|Date,
+};
+
+export type SchemaDescription = {
+    [field_name:string]: SchemaFieldDescription
+};
+export type NestedSchemaDescription = {
+    [field_name:string]: SchemaDescription
+};
+export type ExtendedSchemaDescription = SchemaDescription | NestedSchemaDescription;
+
+export type SchemaOptions = {
+    name?:String,
+    table_name?:String,
+    key?:Array<String|Array<String>>,
+    clustering_order?:{
+        [key:String]: "asc"|"desc"
+    },
+    indexes?:Array<String|{indexed:Array<String>, include?:Array<String>, clustering_order?:{ [key:String]: "asc"|"desc" }}>,
+    unique?:Array<String|{indexed:Array<String>}>,
+
+    expressCassandraOpts?: Object
+};
+
+
+export type Schema = {
+    schema:ExtendedSchemaDescription,
+    options:SchemaOptions,
+
+    methods:{
+        [name:string]: Function
+    },
+
+    statics:{
+        [name:string]: Function
+    },
+
+    constructor(schema:ExtendedSchemaDescription, options:SchemaOptions):Schema,
+
+    primitiveToCassandra(primitiveType:String|Number|Boolean|Date|Buffer|string):"text"|"float"|"boolean"|"timestamp"|"blob"|null,
+
+    simpleComplexToCassandra(simpleType:Class<Array<any>>|Class<Set<any>>|Map|"map", ofType:String|Number|Boolean|Date|Buffer|string):Promise<"list"|"set"|"map"|null>,
+
+    toExpressCassandra(_client:any, fieldsOnly:any):Promise<{
+        table_name:String,
+        fields:Object,
+        
+        key:string|string[]|[string[],string],
+        indexes:Array<any>,
+        ycql_indexes:Array<any>,
+        unique:Array<any>,
+        
+        methods:Object,
+    
+        before_save:Function,
+    
+        before_update:Function
+    }>
+}
