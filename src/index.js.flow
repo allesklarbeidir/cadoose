@@ -21,7 +21,16 @@ import type {
 } from "./Model";
 
 import type {
+    ExtendedSchemaDescription as ExtendedSchemaDescriptionType,
+    NestedSchemaDescription as NestedSchemaDescriptionType,
+    possibleValuesTypes as possibleValuesTypesType,
+    possibleValuesValues as possibleValuesValuesType,
+    possibleValueTypesCassandraPlainText as possibleValueTypesCassandraPlainTextType,
+    possibleValueTypesYugaByteYCQL as possibleValueTypesYugaByteYCQLType,
     Schema,
+    SchemaDescription as SchemaDescriptionType,
+    SchemaFieldDescription as SchemaFieldDescriptionType,
+    SchemaOptions as SchemaOptionsType,
 } from "./Schema";
 
 import type {
@@ -31,6 +40,19 @@ import type {
 import type {
     Map
 } from "./SpecialTypes/Map";
+
+
+export type ExtendedSchemaDescription = ExtendedSchemaDescriptionType;
+export type NestedSchemaDescription = NestedSchemaDescriptionType;
+export type possibleValuesTypes = possibleValuesTypesType;
+export type possibleValuesValues = possibleValuesValuesType;
+export type possibleValueTypesCassandraPlainText = possibleValueTypesCassandraPlainTextType;
+export type possibleValueTypesYugaByteYCQL = possibleValueTypesYugaByteYCQLType;
+export type SchemaType = Schema;
+export type SchemaDescription = SchemaDescriptionType;
+export type SchemaFieldDescription = SchemaFieldDescriptionType;
+export type SchemaOptions = SchemaOptionsType;
+
 
 declare module.exports:{
 
@@ -138,8 +160,8 @@ declare module.exports:{
     },
 
 
-    Schema:Schema,
-    Model:Model,
+    Schema:Class<Schema>,
+    Model:Class<Model>,
 
     SpecialTypes: {
         Map: Map,

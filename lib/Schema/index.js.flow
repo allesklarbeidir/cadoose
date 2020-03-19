@@ -23,7 +23,7 @@ export type SchemaFieldDescription = {
 
     primary_key?:bool,
     clustering_key?:bool,
-    secondary_index?:bool|{include?:Array<String>, clustering_order?:{ [key:String]: "asc"|"desc" }},
+    secondary_index?:bool|{include?:Array<string>, clustering_order?:{ [key:string]: "asc"|"desc" }},
     unique?:bool,
 
     lowercase?:bool,
@@ -47,14 +47,14 @@ export type NestedSchemaDescription = {
 export type ExtendedSchemaDescription = SchemaDescription | NestedSchemaDescription;
 
 export type SchemaOptions = {
-    name?:String,
-    table_name?:String,
-    key?:Array<String|Array<String>>,
+    name?:string,
+    table_name?:string,
+    key?:Array<string|Array<string>>,
     clustering_order?:{
-        [key:String]: "asc"|"desc"
+        [key:string]: "asc"|"desc"
     },
-    indexes?:Array<String|{indexed:Array<String>, include?:Array<String>, clustering_order?:{ [key:String]: "asc"|"desc" }}>,
-    unique?:Array<String|{indexed:Array<String>}>,
+    indexes?:Array<string|{indexed:Array<string>, include?:Array<string>, clustering_order?:{ [key:string]: "asc"|"desc" }}>,
+    unique?:Array<string|{indexed:Array<string>}>,
 
     expressCassandraOpts?: Object
 };
@@ -79,7 +79,7 @@ export type Schema = {
     simpleComplexToCassandra(simpleType:Class<Array<any>>|Class<Set<any>>|Map|"map", ofType:String|Number|Boolean|Date|Buffer|string):Promise<"list"|"set"|"map"|null>,
 
     toExpressCassandra(_client:any, fieldsOnly:any):Promise<{
-        table_name:String,
+        table_name:string,
         fields:Object,
         
         key:string|string[]|[string[],string],
