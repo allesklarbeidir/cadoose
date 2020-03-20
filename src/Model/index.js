@@ -420,7 +420,8 @@ class ModelInstance {
 
         const model = cadoose().models[this.constructor._properties.name];
         
-        const ref = lodashGet(model._schema.fields, `${prop}.ref`, null);
+        // const ref = lodashGet(model._schema.fields, `${prop}.ref`, null);
+        const ref = (model._schema.fields[prop] && model._schema.fields[prop].ref) || null;
         if(ref){
             const refschema = ref && cadoose().schemas[ref] || null;
             if(refschema){
@@ -475,38 +476,43 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
 
     const s = modelPrx._schema.fields;
 
-    Object.keys(instanceValues).forEach(k => {
-        
-        if(s[k] && s[k].type === "set" && instanceValues[k] instanceof Set){
-            instanceValues[k] = [...instanceValues[k]];
-        }
-        else if(s[k] && s[k].type === "set" && (!s[k].asArray && fromDB) && Array.isArray(instanceValues[k])){
-            instanceValues[k] = new Set(instanceValues[k]);
-        }
-        else if(s[k] && s[k].hasOwnProperty("ref") && !fromDB){
-            const refschema = cadoose().schemas[s[k].ref];
-            if(refschema){
-                const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
-                const makeRefMap = (refObj) => refkey.reduce((pv, cv) => {
-                    pv[cv] = String(refObj[cv])
-                    return pv;
-                }, {});
+    Object.keys(s).forEach(k => {
 
-                if(Array.isArray(instanceValues[k])){
-                    instanceValues[k] = instanceValues[k].map(makeRefMap);
+        if(lodashGet(instanceValues, k, null) !== null){
+            
+            if(s[k] && s[k].type === "set" && instanceValues[k] instanceof Set){
+                instanceValues[k] = [...instanceValues[k]];
+            }
+            else if(s[k] && s[k].type === "set" && (!s[k].asArray && fromDB) && Array.isArray(instanceValues[k])){
+                instanceValues[k] = new Set(instanceValues[k]);
+            }
+            else if(s[k] && s[k].hasOwnProperty("ref") && !fromDB){
+                const refschema = cadoose().schemas[s[k].ref];
+                if(refschema){
+                    const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
+                    const makeRefMap = (refObj) => refkey.reduce((pv, cv) => {
+                        pv[cv] = String(refObj[cv])
+                        return pv;
+                    }, {});
+    
+                    if(Array.isArray(lodashGet(instanceValues, k))){
+                        instanceValues[k] = lodashGet(instanceValues, k).map(makeRefMap);
+                    }
+                    else{
+                        instanceValues[k] = makeRefMap(lodashGet(instanceValues, k))
+                    }
                 }
                 else{
-                    instanceValues[k] = makeRefMap(instanceValues[k])
+                    throw new Error("Referenced schema NOT found.");
                 }
             }
-            else{
-                throw new Error("Referenced schema NOT found.");
+    
+            else if(s[k] && s[k].type === "jsonb" && fromDB){
+                instanceValues[k] = new JSONB(instanceValues[k]);
             }
-        }
 
-        else if(s[k] && s[k].type === "jsonb" && fromDB){
-            instanceValues[k] = new JSONB(instanceValues[k]);
         }
+        
 
     });
 
@@ -522,7 +528,7 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
             lodashSet(instanceValues, k, null);
         }
     });
-
+    
     return instanceValues;
 }
 

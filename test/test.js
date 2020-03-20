@@ -4815,6 +4815,76 @@ describe("Cadoose", () => {
 
                 });
 
+                it("Populates a field with a single ref which is in a nested schema, with pk = ['id']", async () => {
+
+                    const userSchema = new Schema({
+                        userid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        username: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
+
+                    const nestedSchema = new Schema({
+                        nestedid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        nesteduser: {
+                            ref: currentTableName()
+                        }
+                    });
+
+                    const chatroomSchema = new Schema({
+                        roomname: {
+                            type: String,
+                            primary_key: true
+                        },
+                        roomadmin: nestedSchema
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
+
+                    const user1 = new User({
+                        userid: "someuserid",
+                        username: "User 1"
+                    });
+
+                    await user1.saveAsync();
+
+                    const room1 = new Chatroom({
+                        roomname: "Marketing",
+                        roomadmin: {
+                            nestedid: "somenestedid",
+                            nesteduser: user1
+                        }
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({roomname: "Marketing"});
+                    
+                    expect(room1FromDB.roomname).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.roomadmin)).to.be.equal("object");
+                    
+                    expect(room1FromDB.roomadmin.nestedid).to.be.equal("somenestedid");
+                    expect(typeof(room1FromDB.roomadmin.nesteduser)).to.be.equal("object");
+
+                    userSchema.options.key.forEach(k => {
+                        expect(room1FromDB.roomadmin.nesteduser).to.have.property(k);
+                    })
+
+                    await room1FromDB.populate("roomadmin.nesteduser");
+
+                    expect(room1FromDB.roomadmin.nesteduser).to.have.property("userid", "someuserid");
+                    expect(room1FromDB.roomadmin.nesteduser).to.have.property("username", "User 1");
+
+                });
+
                 it("Populates a field with a single ref, with pk = ['id', 'subid']", async () => {
 
                     const userSchema = new Schema({
@@ -4874,6 +4944,81 @@ describe("Cadoose", () => {
                     expect(room1FromDB.admin).to.have.property("id", "someuserid");
                     expect(room1FromDB.admin).to.have.property("subid", "someuser-subid");
                     expect(room1FromDB.admin).to.have.property("name", "User 1");
+
+                });
+
+                it("Populates a field with a single ref which is in a nested schema, with pk = ['id', 'usersubid']", async () => {
+
+                    const userSchema = new Schema({
+                        userid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        usersubid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        username: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
+
+                    const nestedSchema = new Schema({
+                        nestedid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        nesteduser: {
+                            ref: currentTableName()
+                        }
+                    });
+
+                    const chatroomSchema = new Schema({
+                        roomname: {
+                            type: String,
+                            primary_key: true
+                        },
+                        roomadmin: nestedSchema
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
+
+                    const user1 = new User({
+                        userid: "someuserid",
+                        usersubid: "someusersubid",
+                        username: "User 1"
+                    });
+
+                    await user1.saveAsync();
+
+                    const room1 = new Chatroom({
+                        roomname: "Marketing",
+                        roomadmin: {
+                            nestedid: "somenestedid",
+                            nesteduser: user1
+                        }
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({roomname: "Marketing"});
+                    
+                    expect(room1FromDB.roomname).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.roomadmin)).to.be.equal("object");
+                    
+                    expect(room1FromDB.roomadmin.nestedid).to.be.equal("somenestedid");
+                    expect(typeof(room1FromDB.roomadmin.nesteduser)).to.be.equal("object");
+
+                    [].concat(...userSchema.options.key).forEach(k => {
+                        expect(room1FromDB.roomadmin.nesteduser).to.have.property(k);
+                    })
+
+                    await room1FromDB.populate("roomadmin.nesteduser");
+
+                    expect(room1FromDB.roomadmin.nesteduser).to.have.property("userid", "someuserid");
+                    expect(room1FromDB.roomadmin.nesteduser).to.have.property("username", "User 1");
 
                 });
 
@@ -4945,6 +5090,86 @@ describe("Cadoose", () => {
 
                 });
 
+                it("Populates a field with a single ref which is in a nested schema, with pk = ['id', 'usersubid'], clusterkey = ['cluster']", async () => {
+
+                    const userSchema = new Schema({
+                        userid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        usersubid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        usercluster: {
+                            type: String,
+                            clustering_key: true
+                        },
+                        username: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
+
+                    const nestedSchema = new Schema({
+                        nestedid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        nesteduser: {
+                            ref: currentTableName()
+                        }
+                    });
+
+                    const chatroomSchema = new Schema({
+                        roomname: {
+                            type: String,
+                            primary_key: true
+                        },
+                        roomadmin: nestedSchema
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
+
+                    const user1 = new User({
+                        userid: "someuserid",
+                        usersubid: "someusersubid",
+                        usercluster: "someclusterkey",
+                        username: "User 1"
+                    });
+
+                    await user1.saveAsync();
+
+                    const room1 = new Chatroom({
+                        roomname: "Marketing",
+                        roomadmin: {
+                            nestedid: "somenestedid",
+                            nesteduser: user1
+                        }
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({roomname: "Marketing"});
+                    
+                    expect(room1FromDB.roomname).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.roomadmin)).to.be.equal("object");
+                    
+                    expect(room1FromDB.roomadmin.nestedid).to.be.equal("somenestedid");
+                    expect(typeof(room1FromDB.roomadmin.nesteduser)).to.be.equal("object");
+
+                    [].concat(...userSchema.options.key).forEach(k => {
+                        expect(room1FromDB.roomadmin.nesteduser).to.have.property(k);
+                    })
+
+                    await room1FromDB.populate("roomadmin.nesteduser");
+
+                    expect(room1FromDB.roomadmin.nesteduser).to.have.property("userid", "someuserid");
+                    expect(room1FromDB.roomadmin.nesteduser).to.have.property("username", "User 1");
+
+                });
+
                 it("Populates a field with an array of refs, with pk = ['id']", async () => {
 
                     const userSchema = new Schema({
@@ -5007,6 +5232,85 @@ describe("Cadoose", () => {
                         expect(room1FromDB.users[i]).to.have.property("id", `someuserid-${v}`);
                         expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
                     })
+                });
+
+                it("Populates a field with an array of refs which is in a nested schema, with pk = ['id']", async () => {
+
+                    const userSchema = new Schema({
+                        userid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        username: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
+
+                    const nestedSchema = new Schema({
+                        nestedid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        nestedusers: [
+                            {ref: currentTableName()}
+                        ]
+                    });
+
+                    const chatroomSchema = new Schema({
+                        roomname: {
+                            type: String,
+                            primary_key: true
+                        },
+                        roomadmins: nestedSchema
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
+
+                    const users = [1,2,3,4,5,6,7,8,9].map(v => {
+                        return new User({
+                            userid: `someuserid-${v}`,
+                            username: `User ${v}`
+                        })
+                    });
+                    const usersSaveQueries = users.map(u => {
+                        return u.save({return_query: true});
+                    });
+
+                    await MakeCadoose().doBatchAsync(usersSaveQueries);
+
+                    const room1 = new Chatroom({
+                        roomname: "Marketing",
+                        roomadmins: {
+                            nestedid: "somenestedid",
+                            nestedusers: users
+                        }
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({roomname: "Marketing"});
+                    
+                    expect(room1FromDB.roomname).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.roomadmins)).to.be.equal("object");
+                    
+                    expect(room1FromDB.roomadmins.nestedid).to.be.equal("somenestedid");
+                    expect(Array.isArray(room1FromDB.roomadmins.nestedusers)).to.be.equal(true);
+
+                    room1FromDB.roomadmins.nestedusers.forEach(u => {
+                        userSchema.options.key.forEach(k => {
+                            expect(u).to.have.property(k);
+                        });
+                    });
+
+                    await room1FromDB.populate("roomadmins.nestedusers");
+
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("userid", `someuserid-${v}`);
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("username", `User ${v}`);
+                    })
+
                 });
 
                 it("Populates a field with an array of refs, with pk = ['id', 'subid']", async () => {
@@ -5077,6 +5381,91 @@ describe("Cadoose", () => {
                         expect(room1FromDB.users[i]).to.have.property("subid", `someuser-subid-${v}`);
                         expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
                     })
+                });
+
+                it("Populates a field with an array of refs which is in a nested schema, with pk = ['id', 'usersubid']", async () => {
+
+                    const userSchema = new Schema({
+                        userid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        usersubid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        username: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
+
+                    const nestedSchema = new Schema({
+                        nestedid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        nestedusers: [
+                            {ref: currentTableName()}
+                        ]
+                    });
+
+                    const chatroomSchema = new Schema({
+                        roomname: {
+                            type: String,
+                            primary_key: true
+                        },
+                        roomadmins: nestedSchema
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
+
+                    const users = [1,2,3,4,5,6,7,8,9].map(v => {
+                        return new User({
+                            userid: `someuserid-${v}`,
+                            usersubid: `someusersubid-${v}`,
+                            username: `User ${v}`
+                        })
+                    });
+                    const usersSaveQueries = users.map(u => {
+                        return u.save({return_query: true});
+                    });
+
+                    await MakeCadoose().doBatchAsync(usersSaveQueries);
+
+                    const room1 = new Chatroom({
+                        roomname: "Marketing",
+                        roomadmins: {
+                            nestedid: "somenestedid",
+                            nestedusers: users
+                        }
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({roomname: "Marketing"});
+                    
+                    expect(room1FromDB.roomname).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.roomadmins)).to.be.equal("object");
+                    
+                    expect(room1FromDB.roomadmins.nestedid).to.be.equal("somenestedid");
+                    expect(Array.isArray(room1FromDB.roomadmins.nestedusers)).to.be.equal(true);
+
+                    room1FromDB.roomadmins.nestedusers.forEach(u => {
+                        [].concat(...userSchema.options.key).forEach(k => {
+                            expect(u).to.have.property(k);
+                        });
+                    });
+
+                    await room1FromDB.populate("roomadmins.nestedusers");
+
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("userid", `someuserid-${v}`);
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("usersubid", `someusersubid-${v}`);
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("username", `User ${v}`);
+                    })
+
                 });
 
                 it("Populates a field with an array of refs, with pk = ['id', 'subid'], clusterkey = ['cluster']", async () => {
@@ -5153,6 +5542,97 @@ describe("Cadoose", () => {
                         expect(room1FromDB.users[i]).to.have.property("cluster", `cluster-${v}`);
                         expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
                     })
+                });
+
+                it("Populates a field with an array of refs which is in a nested schema, with pk = ['id', 'usersubid'], clusterkey = ['cluster']", async () => {
+
+                    const userSchema = new Schema({
+                        userid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        usersubid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        usercluster: {
+                            type: String,
+                            clustering_key: true
+                        },
+                        username: {
+                            type: String
+                        }
+                    });
+
+                    const User = await CadooseModel.registerAndSync(currentTableName(), userSchema);
+
+                    const nestedSchema = new Schema({
+                        nestedid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        nestedusers: [
+                            {ref: currentTableName()}
+                        ]
+                    });
+
+                    const chatroomSchema = new Schema({
+                        roomname: {
+                            type: String,
+                            primary_key: true
+                        },
+                        roomadmins: nestedSchema
+                    });
+
+                    const Chatroom = await CadooseModel.registerAndSync(currentTableName()+"_2", chatroomSchema);
+
+                    const users = [1,2,3,4,5,6,7,8,9].map(v => {
+                        return new User({
+                            userid: `someuserid-${v}`,
+                            usersubid: `someusersubid-${v}`,
+                            usercluster: `someusercluster-${v}`,
+                            username: `User ${v}`
+                        })
+                    });
+                    const usersSaveQueries = users.map(u => {
+                        return u.save({return_query: true});
+                    });
+
+                    await MakeCadoose().doBatchAsync(usersSaveQueries);
+
+                    const room1 = new Chatroom({
+                        roomname: "Marketing",
+                        roomadmins: {
+                            nestedid: "somenestedid",
+                            nestedusers: users
+                        }
+                    });
+
+                    await room1.saveAsync();
+
+                    const room1FromDB = await Chatroom.findOneAsync({roomname: "Marketing"});
+                    
+                    expect(room1FromDB.roomname).to.be.equal("Marketing");
+                    expect(typeof(room1FromDB.roomadmins)).to.be.equal("object");
+                    
+                    expect(room1FromDB.roomadmins.nestedid).to.be.equal("somenestedid");
+                    expect(Array.isArray(room1FromDB.roomadmins.nestedusers)).to.be.equal(true);
+
+                    room1FromDB.roomadmins.nestedusers.forEach(u => {
+                        [].concat(...userSchema.options.key).forEach(k => {
+                            expect(u).to.have.property(k);
+                        });
+                    });
+
+                    await room1FromDB.populate("roomadmins.nestedusers");
+
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("userid", `someuserid-${v}`);
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("usersubid", `someusersubid-${v}`);
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("usercluster", `someusercluster-${v}`);
+                        expect(room1FromDB.roomadmins.nestedusers[i]).to.have.property("username", `User ${v}`);
+                    })
+
                 });
 
             });
