@@ -1,5 +1,8 @@
 // @flow
 import {MakeCadoose, CADOOSE, Model as CadooseModel, Schema, SpecialTypes} from "../src";
+import { ProxyModelListener } from "../src/CadooseProxy/Listener";
+import { ProxyModelAPI, ProxyModelJSONRPCBridge } from "../src/CadooseProxy/API";
+
 import chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 chai.use(chaiAsPromised);
@@ -6593,6 +6596,263 @@ describe("Cadoose", () => {
             });
 
         });
+
+    });
+
+
+    describe("Cadoose-Proxy", () => {
+
+        describe("Proxying Model-API calls", () => {
+
+            it("ProxyModelAPI is used for .populate(...) calls by refering Model as if it were a normally registered Model", async () => {
+
+                // Schema Description and Options
+                // --> these have to be exported for example from a library 
+
+                const dummySchemaDescription = {
+                    dummyid: {
+                        type: String,
+                        required: true
+                    },
+                    dummyval: {
+                        type: String
+                    },
+                    garbage: {
+                        type: Number
+                    }
+                };
+                const dummySchemaOptions = {
+                    key: ["dummyid"]
+                };
+
+                // Using the information from above a Schema is constructed and injected into the cadoose Instance
+                
+                const DummySchema = new Schema(dummySchemaDescription, dummySchemaOptions);
+
+                // Inject Schema
+                cassandra.schemas["dummy"] = DummySchema;
+                // Inject a Proxy for the ModelAPI calls
+                // The Proxy needs to know at least the Schema-Def and a bridge function, which is called for every
+                // prop access for which there's no definition in the schema
+                const DummyModel = new ProxyModelAPI("Dummy", DummySchema, (modelname, prop, obj) => {
+
+                    expect(modelname).to.be.equal("Dummy");
+                    expect(prop).to.be.equal("findOneAsync");
+                    
+                    return (vals) => {
+                        expect(vals).to.have.property("dummyid", "dummyid"); 
+
+
+                        return {
+                            dummyid: "dummyid",
+                            dummyval: "val-value",
+                            garbage: 12313
+                        };
+                    }
+
+                });
+                cassandra.models["dummy"] = DummyModel;
+
+
+                // A Schema which is defined, registered and used locally in the usal way can now reference the extern
+                // Schema+Model as if it were registered locally
+
+                const UserSchema = new Schema({
+
+                    auth: {
+                        email: {
+                            type: String,
+                            required: true,
+                        },
+                    
+                        email_verified: {
+                            type: Boolean,
+                            required: true,
+                            default: false,
+                        },
+                    
+                        display_name: {
+                            type: String,
+                            required: false,
+                        },
+                    
+                        phone_number: {
+                            type: String,
+                            required: false,
+                        },
+                    
+                        uid: {
+                            type: String,
+                            required: true,
+                            primary_key: true
+                        },
+                    
+                        dummy: {
+                            type: "ref",
+                            ref: "dummy"
+                        }
+                    }
+                
+                });
+
+                const User = await CadooseModel.registerAndSync("users", UserSchema);
+
+                const dummyInstance = new DummyModel({
+                    dummyid: "dummyid",
+                    dummyval: "val-value",
+                    garbage: 12313
+                });
+
+                const user = new User({
+                    auth: {
+                        email: "user.test@test.de",
+                    
+                        email_verified: true,
+                    
+                        display_name: "Test User",
+                    
+                        phone_number: "+491231212313",
+                    
+                        uid: "uid-1",
+        
+                        dummy: dummyInstance
+                    }
+                });
+        
+                await user.saveAsync();
+
+                const userFromDB = await User.findOneAsync({"auth.uid": "uid-1"});
+                
+                expect(typeof(userFromDB.auth)).to.be.equal("object");
+
+                expect(userFromDB.auth.email).to.be.equal("user.test@test.de");
+                expect(userFromDB.auth.email_verified).to.be.equal(true);
+                expect(userFromDB.auth.display_name).to.be.equal("Test User");
+                expect(userFromDB.auth.phone_number).to.be.equal("+491231212313");
+                expect(userFromDB.auth.uid).to.be.equal("uid-1");
+                
+                expect(typeof(userFromDB.auth.dummy)).to.be.equal("object");
+
+                dummySchemaOptions.key.forEach(k => {
+                    expect(userFromDB.auth.dummy).to.have.property(k);
+                })
+                expect(Object.keys(userFromDB.auth.dummy).length).to.be.equal(dummySchemaOptions.key.length);
+
+                await userFromDB.populate("auth.dummy");
+
+                expect(userFromDB.auth.dummy).to.have.property("dummyid", "dummyid");
+                expect(userFromDB.auth.dummy).to.have.property("dummyval", "val-value");
+                expect(userFromDB.auth.dummy).to.have.property("garbage", 12313);
+
+            });
+
+            it("ProxyModelAPI Bridge-function gets model-name, function-name and instanceValues (if called on instance, else null)", async () => {
+
+                // Schema Description and Options
+                // --> these have to be exported for example from a library 
+
+                const dummySchemaDescription = {
+                    dummyid: {
+                        type: String,
+                        required: true
+                    },
+                    dummyval: {
+                        type: String
+                    },
+                    garbage: {
+                        type: Number
+                    }
+                };
+                const dummySchemaOptions = {
+                    key: ["dummyid"]
+                };
+
+                // Using the information from above a Schema is constructed
+                
+                const DummySchema = new Schema(dummySchemaDescription, dummySchemaOptions);
+
+                // Even without injection into the cadoose instance, the Model can be used with the ProxyModelAPI
+                // for example to save an ModelInstance to the database via the proxy
+
+                const DummyModel = new ProxyModelAPI("Dummy", DummySchema, (modelname, prop, obj) => {
+                    
+                    expect(modelname).to.be.equal("Dummy");
+                    expect(prop).to.be.equal("saveAsync");
+                    expect(obj).to.have.property("dummyid", "dummyid");
+                    expect(obj).to.have.property("dummyval", "val-value");
+                    expect(obj).to.have.property("garbage", 12313);
+
+                    return async (vals) => {
+                        return {};
+                    }
+                });
+
+                const dummy = new DummyModel({
+                    dummyid: "dummyid",
+                    dummyval: "val-value",
+                    garbage: 12313
+                });
+
+                await dummy.saveAsync();
+
+            });
+
+            it("ProxyModelAPI gets model-name and JSON-RPC payload ready to be sent via some transport protocol", async () => {
+
+                // ########## Extern Server with 'Dummy'-Model locally registered ###########
+
+                const dummySchemaDescription = {
+                    dummyid: {
+                        type: String,
+                        required: true
+                    },
+                    dummyval: {
+                        type: String
+                    },
+                    garbage: {
+                        type: Number
+                    }
+                };
+                const dummySchemaOptions = {
+                    key: ["dummyid"]
+                };                
+                const DummySchema = new Schema(dummySchemaDescription, dummySchemaOptions);
+                const DummyModel = CadooseModel.registerAndSyncDefered("DummyModelRemote", DummySchema);
+                await DummyModel.undefer();
+
+                
+
+                const DummyModelProxyListener = new ProxyModelListener("Dummy", DummyModel);
+
+                // ############################################################################
+
+                
+                // ########## Local code with 'Dummy'-Model used via ProxyModelAPI ###########
+                const DummyRemoteModel = new ProxyModelAPI("Dummy", DummySchema, ProxyModelJSONRPCBridge(
+                    async (jsonRPCRequest) => {
+                        return await DummyModelProxyListener.receive(jsonRPCRequest);
+                    }
+                ));
+
+                const dummy = new DummyRemoteModel({
+                    dummyid: "dummyid",
+                    dummyval: "some value getting written remote...",
+                    garbage: 10101010
+                });
+                
+                await dummy.saveAsync();
+
+                const dummyFromDB = await DummyRemoteModel.findOneAsync({dummyid: "dummyid"});
+
+                expect(dummyFromDB).to.have.property("dummyid", "dummyid");
+                expect(dummyFromDB).to.have.property("dummyval", "some value getting written remote...");
+                expect(dummyFromDB).to.have.property("garbage", 10101010);
+
+            });
+
+        });
+
+
 
     })
 

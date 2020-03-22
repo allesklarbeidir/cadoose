@@ -99,7 +99,8 @@ class Cadoose {
         };
         ModelPrx._properties.get_constructor = () => {return function(instanceValues){ return ModelFn(instanceValues, true); }}
 
-        [...new Set([...Object.keys(ModelPrx), ...Object.keys(ModelDummy), ...Object.keys(modelSchema.statics)])].forEach(k => {
+        const keys = [...new Set([...Object.keys(ModelPrx), ...Object.keys(ModelDummy), ...Object.keys(modelSchema.statics)])];
+        keys.forEach(k => {
             Object.defineProperty(ModelFn, k, {
                 get: function(){
                     return ModelPrx[k];
@@ -108,7 +109,19 @@ class Cadoose {
         });
 
         this.models[modelName] = ModelFn;
-        this.models[modelName].__loaded = true;
+        Object.defineProperty(this.models[modelName], "__loaded", {
+            enumerable: false,
+            get: function(){
+                return true;
+            }
+        });
+        Object.defineProperty(this.models[modelName], "__proxiedObjectProperties", {
+            enumerable: false,
+            get: function(){
+                return keys;
+            }
+        });
+
         return this.models[modelName];
     }
 
@@ -174,7 +187,14 @@ class Cadoose {
         };
 
         this.models[modelName] = ModelFn;
+        Object.defineProperty(this.models[modelName], "__proxiedObjectProperties", {
+            enumerable: false,
+            get: function(){
+                return keys;
+            }
+        });
         this._defered[modelName] = {loaded:false, synced:false};
+       
         return this.models[modelName];
     }
 }

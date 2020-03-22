@@ -1917,6 +1917,11 @@ jsesc@~0.5.0:
   resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-0.5.0.tgz#e7dee66e35d6fc16f710fe91d5cf69f70f08911d"
   integrity sha1-597mbjXW/Bb3EP6R1c9p9w8IkR0=
 
+json-rpc-2.0@^0.2.10:
+  version "0.2.10"
+  resolved "https://registry.yarnpkg.com/json-rpc-2.0/-/json-rpc-2.0-0.2.10.tgz#5215f017c74324c25becbd24a0682c33fa57bf6a"
+  integrity sha512-jr55XIvoePMH3W+kxVH4p9la8tfEtrCqD1k0eaHIwc9fPskjamQksyaPV8mqLSUPwhJdUK5Oj16XiImT+dh0eg==
+
 json5@^2.1.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/json5/-/json5-2.1.0.tgz#e7a0c62c48285c628d20a10b85c89bb807c32850"
