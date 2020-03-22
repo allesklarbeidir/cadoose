@@ -7,6 +7,8 @@ import ModelProxy, {Model, ModelInstanceProxy, ModelDummy, TransformInstanceValu
 import "harmony-reflect";
 import Map from "./SpecialTypes/Map";
 import JSONB from "./SpecialTypes/JSONB";
+import {ProxyModelAPI, ProxyModelJSONRPCBridge} from "./CadooseProxy/API";
+import {ProxyModelListener} from "./CadooseProxy/Listener";
 
 const Proxy = global.Proxy;
 Proxy.prototype = {};
@@ -268,9 +270,10 @@ function MakeCadoose(clientOptions:{
 };
 
 export {MakeCadoose};
-
 export {Schema, Model}
 export const SpecialTypes = {
     Map: Map,
     JSONB: JSONB
 }
+
+export {ProxyModelAPI, ProxyModelJSONRPCBridge, ProxyModelListener}
