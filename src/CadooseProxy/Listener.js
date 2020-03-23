@@ -13,7 +13,7 @@ let instanceDefaultProperties = null;
 
 class ProxyModelListener {
 
-    constructor(_modelName:string, _model){
+    constructor(_modelName:string, _model:FusedModelType<*>){
 
         this.server = new JSONRPCServer();
         

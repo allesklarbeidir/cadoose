@@ -4,10 +4,6 @@ import "harmony-reflect";
 import {JSONRPCClient} from "json-rpc-2.0";
 import lodashGet from "lodash/get";
 
-import type {
-    FusedModelType
-} from "../Model";
-
 const Proxy = global.Proxy;
 Proxy.prototype = {};
 
