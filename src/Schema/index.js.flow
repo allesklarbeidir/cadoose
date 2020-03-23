@@ -74,6 +74,8 @@ export type Schema = {
 
     constructor(schema:ExtendedSchemaDescription, options:SchemaOptions):Schema,
 
+    getSchemaDescription():Object,
+
     primitiveToCassandra(primitiveType:String|Number|Boolean|Date|Buffer|string):"text"|"float"|"boolean"|"timestamp"|"blob"|null,
 
     simpleComplexToCassandra(simpleType:Class<Array<any>>|Class<Set<any>>|Map|"map", ofType:String|Number|Boolean|Date|Buffer|string):Promise<"list"|"set"|"map"|null>,
