@@ -494,12 +494,23 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
                         pv[cv] = String(refObj[cv])
                         return pv;
                     }, {});
-    
-                    if(Array.isArray(lodashGet(instanceValues, k))){
-                        instanceValues[k] = lodashGet(instanceValues, k).map(makeRefMap);
+
+                    if(refkey.length > 1){
+                        if(Array.isArray(lodashGet(instanceValues, k))){
+                            instanceValues[k] = lodashGet(instanceValues, k).map(makeRefMap);
+                        }
+                        else{
+                            instanceValues[k] = makeRefMap(lodashGet(instanceValues, k))
+                        }
                     }
                     else{
-                        instanceValues[k] = makeRefMap(lodashGet(instanceValues, k))
+                        const reftype = lodashGet(refschema.schema, `${k}.type`);
+                        if(typeof reftype === "function"){
+                            instanceValues[k] = reftype(lodashGet(instanceValues, `${k}.${refkey[0]}`));
+                        }
+                        else{
+                            instanceValues[k] = lodashGet(instanceValues, `${k}.${refkey[0]}`);
+                        }
                     }
                 }
                 else{

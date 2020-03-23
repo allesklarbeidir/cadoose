@@ -663,18 +663,26 @@ class Schema {
                         if(refschema){
                             const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
 
-                            const cf = await makeField({
-                                type: Map,
-                                of: [String, String],
-                                validate: ((__refkey) => {
-                                    const _rkey = __refkey;
-                                    return (value, model, schema) => {
-                                        return value && Object.keys(value).length === _rkey.length && Object.keys(value).map(vk => {
-                                            return _rkey.indexOf(vk) !== -1
-                                        }).filter(Boolean).length === _rkey.length;
-                                    }
-                                })(refkey)
-                            }, _key);
+                            let cf = null;
+                            if(refkey.length > 1){
+                                cf = await makeField({
+                                    type: Map,
+                                    of: [String, String],
+                                    validate: ((__refkey) => {
+                                        const _rkey = __refkey;
+                                        return (value, model, schema) => {
+                                            return value && Object.keys(value).length === _rkey.length && Object.keys(value).map(vk => {
+                                                return _rkey.indexOf(vk) !== -1
+                                            }).filter(Boolean).length === _rkey.length;
+                                        }
+                                    })(refkey)
+                                }, _key);
+                            }
+                            else{
+                                cf = await makeField({
+                                    type: String
+                                }, _key);
+                            }
 
                             fields[_key] = cf;
                             fields[_key].ref = sf[_k].ref;
@@ -770,42 +778,51 @@ class Schema {
                     ){
                         let refschema = cadoose().schemas[sarr[0].ref];
                         if(refschema){
-                            const refkey = [].concat(...refschema.options.key);
+                            const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
 
-                            fields[_key] = {
-                                type: sf[_k].constructor === Array ? "list" : "set",
-                                typeDef: "<frozen<map<text,text>>>",
-                                rule:{
-                                    validator: ((__refkey) => {
-                                        const _rkey = __refkey;
-                                        return (value) => {
-
-                                            let vals = value || [];
-                                            vals = [...vals];
-        
-                                            for(let i = 0; i < vals.length; i++){
-                                                const v = vals[i];
-
-                                                const OK = v && Object.keys(v).length === _rkey.length && Object.keys(v).map(vk => {
+                            if(refkey.length > 1){
+                                fields[_key] = {
+                                    type: sf[_k].constructor === Array ? "list" : "set",
+                                    typeDef: "<frozen<map<text,text>>>",
+                                    rule:{
+                                        validator: ((__refkey) => {
+                                            const _rkey = __refkey;
+                                            return (value) => {
+    
+                                                let vals = value || [];
+                                                vals = [...vals];
+            
+                                                for(let i = 0; i < vals.length; i++){
+                                                    const v = vals[i];
+    
+                                                    const OK = v && Object.keys(v).length === _rkey.length && Object.keys(v).map(vk => {
+                                                        return _rkey.indexOf(vk) !== -1
+                                                    }).filter(Boolean).length === _rkey.length;
+    
+                                                    if(!OK){
+                                                        return false
+                                                    }
+                                                }
+    
+                                                return true;
+    
+                                                return value && Object.keys(value).length === _rkey.length && Object.keys(value).map(vk => {
                                                     return _rkey.indexOf(vk) !== -1
                                                 }).filter(Boolean).length === _rkey.length;
-
-                                                if(!OK){
-                                                    return false
-                                                }
                                             }
+                                        })(refkey),
+                                        message: "One or more items are no valid references to the referenced Model."
+                                    }
+                                };
+                            }
+                            else{
+                                const reftype = lodashGet(refschema.schema, `${_key}.type`);
+                                fields[_key] = await makeField({
+                                    type: sf[_k].constructor,
+                                    of: reftype
+                                }, _key);
+                            }
 
-                                            return true;
-
-                                            return value && Object.keys(value).length === _rkey.length && Object.keys(value).map(vk => {
-                                                return _rkey.indexOf(vk) !== -1
-                                            }).filter(Boolean).length === _rkey.length;
-                                        }
-                                    })(refkey),
-                                    message: "One or more items are no valid references to the referenced Model."
-                                }
-
-                            };
                             fields[_key].ref = sarr[0].ref;
 
                             if(_subkeyarr){
