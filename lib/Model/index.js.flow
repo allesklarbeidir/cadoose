@@ -69,7 +69,7 @@ export type expressCassandraModelType = {
 export type FusedModelType_ANY = expressCassandraModelType&Model;
 export type FusedModelType<T> = expressCassandraModelType&Model&T;
 export type FusedModelTypeDefered<T> = expressCassandraModelType&Model&{
-    undefer?: (forceSync:bool) => Promise<FusedModelType<T>>
+    undefer: (forceSync?:bool) => Promise<FusedModelType<T>>
 };
 
 

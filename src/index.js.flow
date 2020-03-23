@@ -41,6 +41,15 @@ import type {
     Map
 } from "./SpecialTypes/Map";
 
+import type {
+    ProxyModelAPI,
+    ProxyModelJSONRPCBridge
+} from "./CadooseProxy/API";
+
+import type {
+    ProxyModelListener
+} from "./CadooseProxy/Listener";
+
 
 export type ExtendedSchemaDescription = ExtendedSchemaDescriptionType;
 export type NestedSchemaDescription = NestedSchemaDescriptionType;
@@ -166,5 +175,10 @@ declare module.exports:{
     SpecialTypes: {
         Map: Map,
         JSONB: JSONB
-    }
+    },
+
+
+    ProxyModelAPI:ProxyModelAPI,
+    ProxyModelJSONRPCBridge:ProxyModelJSONRPCBridge,
+    ProxyModelListener:Class<ProxyModelListener>,
 }

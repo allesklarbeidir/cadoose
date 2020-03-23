@@ -1,0 +1,14 @@
+import type {
+    FusedModelType
+} from "../Model";
+
+export type ProxyModelAPI<T> = FusedModelType<T>&{
+    __$modelName:string,
+    __$schemaDesc:Object,
+    __$functionBridge:(modelName:string, prop:string, instanceValues:Object) => Promise<*>,
+    __$getInstanceValues:() => Object
+};
+
+export type ProxyModelJSONRPCBridge = (
+    jsonrpcTransmission:(jsonRPCRequest:Object) => Promise<*>
+) => (modelName:string, prop:string, instanceValues:Object) => Promise<*>;
