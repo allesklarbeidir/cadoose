@@ -2870,20 +2870,36 @@ describe("Cadoose", () => {
 
                 it.skip("<text, Schema> Map (Object) is saved in Database and retrieved as Object", async () => {})
 
-                it.skip("<text, single-ref> Map (Object) is saved in Database and retrieved as Object", async () => {
+                it("<text, single-ref> Map (Object) is saved in Database and retrieved as Object", async () => {
 
                     const refedSchema = new Schema({
                         refid: {
                             type: String,
                             primary_key: true
+                        },
+                        desc: {
+                            type: String
                         }
                     });
                     const RefModel = await CadooseModel.registerAndSync(currentTableName(), refedSchema);
 
-                    const refm = new RefModel({
-                        refid: "refid"
+                    const refm1 = new RefModel({
+                        refid: "refid",
+                        desc: "hello"
                     });
-                    await refm.saveAsync();
+                    await refm1.saveAsync();
+
+                    const refm2 = new RefModel({
+                        refid: "refid2",
+                        desc: "world"
+                    });
+                    await refm2.saveAsync();
+
+                    const refm3 = new RefModel({
+                        refid: "refid3",
+                        desc: "refmodel3"
+                    });
+                    await refm3.saveAsync();
 
                     const s = new Schema({
                         key: {
@@ -2900,9 +2916,9 @@ describe("Cadoose", () => {
                     const Model = await CadooseModel.registerAndSync(currentTableName()+"_1", s);
 
                     const map1 = new Map(String, {ref:currentTableName()}).set({
-                        prop1: [refm],
-                        prop2: [refm],
-                        prop3: [refm],
+                        prop1: refm1,
+                        prop2: refm2,
+                        prop3: refm3,
                     });
 
                     const a = new Model({
@@ -2913,13 +2929,108 @@ describe("Cadoose", () => {
                     
                     const aa = await Model.findOneAsync({key:"some-default-id"});
 
-                    console.log(aa.map);
+                    expect(aa.key).to.be.equal("some-default-id");
+                    expect(typeof(aa.map)).to.be.equal("object");
+
+                    expect(aa.map).to.have.property("prop1", refm1.refid);
+                    expect(aa.map).to.have.property("prop2", refm2.refid);
+                    expect(aa.map).to.have.property("prop3", refm3.refid);
+                    
+                    await aa.populate("map");
+                    
+                    expect(typeof aa.map.prop1).to.be.equal("object");
+                    expect(aa.map.prop1).to.have.property("refid", refm1.refid);
+                    expect(aa.map.prop1).to.have.property("desc", refm1.desc);
+
+                    expect(typeof aa.map.prop2).to.be.equal("object");
+                    expect(aa.map.prop2).to.have.property("refid", refm2.refid);
+                    expect(aa.map.prop2).to.have.property("desc", refm2.desc);
+
+                    expect(typeof aa.map.prop3).to.be.equal("object");
+                    expect(aa.map.prop3).to.have.property("refid", refm3.refid);
+                    expect(aa.map.prop3).to.have.property("desc", refm3.desc);
+
+
+                    console.log(JSON.stringify(aa.map));
+                });
+
+                it("<text, Array<single-ref>> Map (Object) is saved in Database and retrieved as Object", async () => {
+
+                    const refedSchema = new Schema({
+                        refid: {
+                            type: String,
+                            primary_key: true
+                        },
+                        desc: {
+                            type: String
+                        }
+                    });
+                    const RefModel = await CadooseModel.registerAndSync(currentTableName(), refedSchema);
+
+                    const refm1 = new RefModel({
+                        refid: "refid",
+                        desc: "hello"
+                    });
+                    await refm1.saveAsync();
+
+                    const refm2 = new RefModel({
+                        refid: "refid2",
+                        desc: "world"
+                    });
+                    await refm2.saveAsync();
+
+                    const refm3 = new RefModel({
+                        refid: "refid3",
+                        desc: "refmodel3"
+                    });
+                    await refm3.saveAsync();
+
+                    const s = new Schema({
+                        key: {
+                            type: String,
+                            primary_key: true,
+                            default: "some-default-id"
+                        },
+                        map: {
+                            type: Map,
+                            of: [String, [{ref: currentTableName()}]]
+                        }
+                    });
+
+                    const Model = await CadooseModel.registerAndSync(currentTableName()+"_1", s);
+
+                    const map1 = new Map(String, [{ref:currentTableName()}]).set({
+                        prop1: [refm1, refm2, refm3]
+                    });
+
+                    const a = new Model({
+                        map: map1
+                    });
+
+                    await a.saveAsync();
+                    
+                    const aa = await Model.findOneAsync({key:"some-default-id"});
 
                     expect(aa.key).to.be.equal("some-default-id");
                     expect(typeof(aa.map)).to.be.equal("object");
-                    expect(aa.map.prop1 && aa.map.prop1.length === 1 && aa.map.prop1[0] === "list_1").to.be.equal(true);
-                    expect(aa.map.prop2 && aa.map.prop2.length === 1 && aa.map.prop2[0] === "list_2").to.be.equal(true);
-                    expect(aa.map.prop3 && aa.map.prop3.length === 1 && aa.map.prop3[0] === "list_3").to.be.equal(true);
+
+                    expect(aa.map).to.have.property("prop1");
+                    expect(Array.isArray(aa.map.prop1)).to.be.equal(true);
+                    
+                    [refm1, refm2, refm3].map(r => r.refid).forEach(rid => {
+                        expect(aa.map.prop1).to.include(rid);
+                    });
+                    
+                    await aa.populate("map");
+                    
+                    expect(Array.isArray(aa.map.prop1)).to.be.equal(true);
+
+                    [refm1, refm2, refm3].forEach(rf => {
+                        const rfidx = aa.map.prop1.map(r => r.refid).indexOf(rf.refid);
+                        expect(aa.map.prop1[rfidx]).to.have.property("refid", rf.refid);
+                        expect(aa.map.prop1[rfidx]).to.have.property("desc", rf.desc);
+                    });
+
                 });
             });
 

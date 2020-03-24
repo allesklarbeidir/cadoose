@@ -148,17 +148,41 @@ class Schema {
                     }
                     else{
                         if(Array.isArray(valType)){
-                            const scomValOfType = valType[0];
-
-                            const simpCompType = await Schema.simpleComplexToCassandra(Array, scomValOfType);
-                            if(simpCompType){
-                                resolve({
-                                    type: "map",
-                                    typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},frozen<${simpCompType.type}${simpCompType.typeDef}>`)
-                                });
+                            if(typeof valType[0] === "object" && valType[0].hasOwnProperty("ref") && typeof valType[0].ref === "string"){
+                                let refschema = cadoose().schemas[valType[0].ref];
+                                if(refschema){
+                                    const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
+                                    
+                                    if(refkey.length === 1){
+                                        const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
+                                        
+                                        resolve({
+                                            type: "map",
+                                            typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},frozen<list<${Schema.primitiveToCassandra(reftype)}>>`),
+                                            ref: valType[0].ref
+                                        });
+                                    }
+                                    else{
+                                        reject();
+                                    }
+                                }
+                                else{
+                                    reject();
+                                }
                             }
                             else{
-                                reject();
+                                const scomValOfType = valType[0];
+    
+                                const simpCompType = await Schema.simpleComplexToCassandra(Array, scomValOfType);
+                                if(simpCompType){
+                                    resolve({
+                                        type: "map",
+                                        typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},frozen<${simpCompType.type}${simpCompType.typeDef}>`)
+                                    });
+                                }
+                                else{
+                                    reject();
+                                }
                             }
                         }
                         else if(typeof valType === "object" && valType.hasOwnProperty("ref") && typeof valType.ref === "string"){
@@ -175,9 +199,12 @@ class Schema {
                                         ref: valType.ref
                                     });
                                 }
+                                else{
+                                    reject();
+                                }
                             }
                             else{
-
+                                reject();
                             }
                         }
                         else{
@@ -696,15 +723,25 @@ class Schema {
                                         }
                                     })(refkey)
                                 }, _key);
+
+                                fields[_key] = cf;
+                                
+                                Object.defineProperty(fields[_key], "__$isCompoundRef", {
+                                    enumerable: false,
+                                    get: function(){
+                                        return true;
+                                    }
+                                });
                             }
                             else{
                                 const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
                                 cf = await makeField({
                                     type: reftype
                                 }, _key);
+
+                                fields[_key] = cf;
                             }
 
-                            fields[_key] = cf;
                             fields[_key].ref = sf[_k].ref;
 
                             if(_subkeyarr){

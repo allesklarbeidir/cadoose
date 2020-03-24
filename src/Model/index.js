@@ -449,6 +449,48 @@ class ModelInstance {
                     const fetchedRefs = await cadoose().models[ref].findAsync({...queryObject});
                     lodashSet(this._instance, prop, fetchedRefs);
                 }
+                else if(
+                    model._schema.fields[prop].type === "map" && 
+                    !model._schema.fields[prop].hasOwnProperty("__$isCompoundRef") && 
+                    typeof(instProp) === "object"
+                ){
+                    if(refkey.length === 1){
+
+                        if(Array.isArray(Object.values(instProp)[0])){
+                            const instPropKeys = Object.keys(instProp);
+                            for(let i = 0; i < instPropKeys.length; i++){
+                                const instPropKey = instPropKeys[i];
+
+                                const queryObject = {
+                                    [refkey[0]]: {$in : Object.values(instProp[instPropKey])}
+                                };
+    
+                                const fetchedRefs = await cadoose().models[ref].findAsync({...queryObject});
+        
+                                lodashSet(this._instance, `${prop}.${instPropKey}`, fetchedRefs || []);
+
+                            }
+                        }
+                        else{
+                            const queryObject = {
+                                [refkey[0]]: {$in : Object.values(instProp)}
+                            };
+        
+                            const fetchedRefs = await cadoose().models[ref].findAsync({...queryObject});
+        
+                            Object.keys(instProp).forEach(_k => {
+                                const farr = (fetchedRefs || []).filter(fr => lodashGet(fr, refkey[0]) === instProp[_k]);
+                                lodashSet(this._instance, `${prop}.${_k}`, farr.length > 0 ? farr[0] : null);
+                            });
+                        }
+
+                    }
+                    else{
+                        throw new Error("Cannot use Map<text, ref> if key of referenced schema is not atomic.");
+                    }
+
+
+                }
                 else{
                     let queryObject = {};
 
@@ -460,7 +502,6 @@ class ModelInstance {
                             [refkey[0]]: instProp
                         };
                     }
-
                     const fetchedRef = await cadoose().models[ref].findOneAsync({...queryObject});
                     lodashSet(this._instance, prop, fetchedRef);
                 }
@@ -514,9 +555,34 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
                         }
                     }
                     else{
-                        const reftype = lodashGet(refschema.schema, `${k}.type`);
+                        const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
 
-                        if(Array.isArray(lodashGet(instanceValues, k))){
+                        if(isMapWithRefs){
+                            Object.keys(lodashGet(instanceValues, k)).forEach(_k => {
+                                const prop = lodashGet(instanceValues, `${k}.${_k}`);
+                                if(typeof reftype === "function"){
+                                    if(Array.isArray(prop)){
+                                        instanceValues[k][_k] = prop.map(pref => {
+                                            return reftype(lodashGet(pref, refkey[0]))
+                                        });
+                                    }
+                                    else{
+                                        instanceValues[k][_k] = reftype(lodashGet(instanceValues, `${k}.${_k}.${refkey[0]}`));
+                                    }
+                                }
+                                else{
+                                    if(Array.isArray(prop)){
+                                        instanceValues[k][_k] = prop.map(pref => {
+                                            return lodashGet(pref, refkey[0]);
+                                        });
+                                    }
+                                    else{
+                                        instanceValues[k][_k] = lodashGet(instanceValues, `${k}.${_k}.${refkey[0]}`);
+                                    }
+                                }
+                            });
+                        }
+                        else if(Array.isArray(lodashGet(instanceValues, k))){
 
                             instanceValues[k] = lodashGet(instanceValues, k).map(instValRef => {
                                 if(typeof reftype === "function"){
@@ -529,7 +595,6 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
 
                         }
                         else{
-
                             if(typeof reftype === "function"){
                                 instanceValues[k] = reftype(lodashGet(instanceValues, `${k}.${refkey[0]}`));
                             }
