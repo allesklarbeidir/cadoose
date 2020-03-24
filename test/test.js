@@ -2869,6 +2869,58 @@ describe("Cadoose", () => {
                 });
 
                 it.skip("<text, Schema> Map (Object) is saved in Database and retrieved as Object", async () => {})
+
+                it.skip("<text, single-ref> Map (Object) is saved in Database and retrieved as Object", async () => {
+
+                    const refedSchema = new Schema({
+                        refid: {
+                            type: String,
+                            primary_key: true
+                        }
+                    });
+                    const RefModel = await CadooseModel.registerAndSync(currentTableName(), refedSchema);
+
+                    const refm = new RefModel({
+                        refid: "refid"
+                    });
+                    await refm.saveAsync();
+
+                    const s = new Schema({
+                        key: {
+                            type: String,
+                            primary_key: true,
+                            default: "some-default-id"
+                        },
+                        map: {
+                            type: Map,
+                            of: [String, {ref: currentTableName()}]
+                        }
+                    });
+
+                    const Model = await CadooseModel.registerAndSync(currentTableName()+"_1", s);
+
+                    const map1 = new Map(String, {ref:currentTableName()}).set({
+                        prop1: [refm],
+                        prop2: [refm],
+                        prop3: [refm],
+                    });
+
+                    const a = new Model({
+                        map: map1
+                    });
+
+                    await a.saveAsync();
+                    
+                    const aa = await Model.findOneAsync({key:"some-default-id"});
+
+                    console.log(aa.map);
+
+                    expect(aa.key).to.be.equal("some-default-id");
+                    expect(typeof(aa.map)).to.be.equal("object");
+                    expect(aa.map.prop1 && aa.map.prop1.length === 1 && aa.map.prop1[0] === "list_1").to.be.equal(true);
+                    expect(aa.map.prop2 && aa.map.prop2.length === 1 && aa.map.prop2[0] === "list_2").to.be.equal(true);
+                    expect(aa.map.prop3 && aa.map.prop3.length === 1 && aa.map.prop3[0] === "list_3").to.be.equal(true);
+                });
             });
 
         });
@@ -4805,14 +4857,15 @@ describe("Cadoose", () => {
                     const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
                     
                     expect(room1FromDB.name).to.be.equal("Marketing");
-                    expect(typeof(room1FromDB.admin)).to.be.equal("object");
-
-                    userSchema.options.key.forEach(k => {
-                        expect(room1FromDB.admin).to.have.property(k);
-                    })
-
+                    expect(typeof(room1FromDB.admin)).to.be.equal("string");
+                    
+                    // userSchema.options.key.forEach(k => {
+                    //     expect(room1FromDB.admin).to.have.property(k);
+                    // })
+                    
                     await room1FromDB.populate("admin");
-
+                        
+                    expect(typeof(room1FromDB.admin)).to.be.equal("object");
                     expect(room1FromDB.admin).to.have.property("id", "someuserid");
                     expect(room1FromDB.admin).to.have.property("name", "User 1");
 
@@ -4875,14 +4928,15 @@ describe("Cadoose", () => {
                     expect(typeof(room1FromDB.roomadmin)).to.be.equal("object");
                     
                     expect(room1FromDB.roomadmin.nestedid).to.be.equal("somenestedid");
-                    expect(typeof(room1FromDB.roomadmin.nesteduser)).to.be.equal("object");
-
-                    userSchema.options.key.forEach(k => {
-                        expect(room1FromDB.roomadmin.nesteduser).to.have.property(k);
-                    })
-
+                    expect(typeof(room1FromDB.roomadmin.nesteduser)).to.be.equal("string");
+                    
+                    // userSchema.options.key.forEach(k => {
+                    //     expect(room1FromDB.roomadmin.nesteduser).to.have.property(k);
+                    // })
+                        
                     await room1FromDB.populate("roomadmin.nesteduser");
-
+                        
+                    expect(typeof(room1FromDB.roomadmin.nesteduser)).to.be.equal("object");
                     expect(room1FromDB.roomadmin.nesteduser).to.have.property("userid", "someuserid");
                     expect(room1FromDB.roomadmin.nesteduser).to.have.property("username", "User 1");
 
@@ -5221,12 +5275,16 @@ describe("Cadoose", () => {
                     const room1FromDB = await Chatroom.findOneAsync({name: "Marketing"});
                     
                     expect(room1FromDB.name).to.be.equal("Marketing");
+                    // console.log(room1FromDB.users);
                     expect(Array.isArray(room1FromDB.users)).to.be.equal(true);
 
-                    room1FromDB.users.forEach(u => {
-                        userSchema.options.key.forEach(k => {
-                            expect(u).to.have.property(k);
-                        });
+                    // room1FromDB.users.forEach(u => {
+                    //     userSchema.options.key.forEach(k => {
+                    //         expect(u).to.have.property(k);
+                    //     });
+                    // });
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(typeof room1FromDB.users[i]).to.be.equal("string")
                     });
 
                     await room1FromDB.populate("users");
@@ -5234,7 +5292,7 @@ describe("Cadoose", () => {
                     [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
                         expect(room1FromDB.users[i]).to.have.property("id", `someuserid-${v}`);
                         expect(room1FromDB.users[i]).to.have.property("name", `User ${v}`);
-                    })
+                    });
                 });
 
                 it("Populates a field with an array of refs which is in a nested schema, with pk = ['id']", async () => {
@@ -5301,11 +5359,14 @@ describe("Cadoose", () => {
                     expect(room1FromDB.roomadmins.nestedid).to.be.equal("somenestedid");
                     expect(Array.isArray(room1FromDB.roomadmins.nestedusers)).to.be.equal(true);
 
-                    room1FromDB.roomadmins.nestedusers.forEach(u => {
-                        userSchema.options.key.forEach(k => {
-                            expect(u).to.have.property(k);
-                        });
-                    });
+                    // room1FromDB.roomadmins.nestedusers.forEach(u => {
+                    //     userSchema.options.key.forEach(k => {
+                    //         expect(u).to.have.property(k);
+                    //     });
+                    // });
+                    [1,2,3,4,5,6,7,8,9].forEach((v,i) => {
+                        expect(typeof room1FromDB.roomadmins.nestedusers[i]).to.be.equal("string")
+                    })
 
                     await room1FromDB.populate("roomadmins.nestedusers");
 
@@ -6731,15 +6792,16 @@ describe("Cadoose", () => {
                 expect(userFromDB.auth.phone_number).to.be.equal("+491231212313");
                 expect(userFromDB.auth.uid).to.be.equal("uid-1");
                 
-                expect(typeof(userFromDB.auth.dummy)).to.be.equal("object");
+                expect(typeof(userFromDB.auth.dummy)).to.be.equal("string");
 
-                dummySchemaOptions.key.forEach(k => {
-                    expect(userFromDB.auth.dummy).to.have.property(k);
-                })
-                expect(Object.keys(userFromDB.auth.dummy).length).to.be.equal(dummySchemaOptions.key.length);
+                // dummySchemaOptions.key.forEach(k => {
+                //     expect(userFromDB.auth.dummy).to.have.property(k);
+                // })
+                // expect(Object.keys(userFromDB.auth.dummy).length).to.be.equal(dummySchemaOptions.key.length);
 
                 await userFromDB.populate("auth.dummy");
 
+                expect(typeof(userFromDB.auth.dummy)).to.be.equal("object");
                 expect(userFromDB.auth.dummy).to.have.property("dummyid", "dummyid");
                 expect(userFromDB.auth.dummy).to.have.property("dummyval", "val-value");
                 expect(userFromDB.auth.dummy).to.have.property("garbage", 12313);

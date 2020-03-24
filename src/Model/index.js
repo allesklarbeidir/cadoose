@@ -494,7 +494,10 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
                 instanceValues[k] = new Set(instanceValues[k]);
             }
             else if(s[k] && s[k].hasOwnProperty("ref") && !fromDB){
+                const isMapWithRefs = s[k] && s[k].type === "map" && typeof(instanceValues[k]) === "object";
+
                 const refschema = cadoose().schemas[s[k].ref];
+
                 if(refschema){
                     const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
                     const makeRefMap = (refObj) => refkey.reduce((pv, cv) => {
@@ -512,12 +515,30 @@ export const TransformInstanceValues = (instanceValues, modelPrx, fromDB) => {
                     }
                     else{
                         const reftype = lodashGet(refschema.schema, `${k}.type`);
-                        if(typeof reftype === "function"){
-                            instanceValues[k] = reftype(lodashGet(instanceValues, `${k}.${refkey[0]}`));
+
+                        if(Array.isArray(lodashGet(instanceValues, k))){
+
+                            instanceValues[k] = lodashGet(instanceValues, k).map(instValRef => {
+                                if(typeof reftype === "function"){
+                                    return reftype(lodashGet(instValRef, refkey[0]));
+                                }
+                                else{
+                                    return lodashGet(instValRef, refkey[0]);
+                                }
+                            });
+
                         }
                         else{
-                            instanceValues[k] = lodashGet(instanceValues, `${k}.${refkey[0]}`);
+
+                            if(typeof reftype === "function"){
+                                instanceValues[k] = reftype(lodashGet(instanceValues, `${k}.${refkey[0]}`));
+                            }
+                            else{
+                                instanceValues[k] = lodashGet(instanceValues, `${k}.${refkey[0]}`);
+                            }
+
                         }
+
                     }
                 }
                 else{

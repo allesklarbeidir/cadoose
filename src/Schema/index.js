@@ -161,6 +161,25 @@ class Schema {
                                 reject();
                             }
                         }
+                        else if(typeof valType === "object" && valType.hasOwnProperty("ref") && typeof valType.ref === "string"){
+                            let refschema = cadoose().schemas[valType.ref];
+                            if(refschema){
+                                const refkey = [].concat(...(Array.isArray(refschema.options.key) ? refschema.options.key : [refschema.options.key]));
+                                
+                                if(refkey.length === 1){
+                                    const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
+                                    
+                                    resolve({
+                                        type: "map",
+                                        typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},${Schema.primitiveToCassandra(reftype)}`),
+                                        ref: valType.ref
+                                    });
+                                }
+                            }
+                            else{
+
+                            }
+                        }
                         else{
                             const simpCompVal = await Schema.simpleComplexToCassandra(valType);
                             if(simpCompVal){
@@ -679,8 +698,9 @@ class Schema {
                                 }, _key);
                             }
                             else{
+                                const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
                                 cf = await makeField({
-                                    type: String
+                                    type: reftype
                                 }, _key);
                             }
 
@@ -816,7 +836,7 @@ class Schema {
                                 };
                             }
                             else{
-                                const reftype = lodashGet(refschema.schema, `${_key}.type`);
+                                const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
                                 fields[_key] = await makeField({
                                     type: sf[_k].constructor,
                                     of: reftype
