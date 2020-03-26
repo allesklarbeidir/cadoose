@@ -2949,9 +2949,6 @@ describe("Cadoose", () => {
                     expect(typeof aa.map.prop3).to.be.equal("object");
                     expect(aa.map.prop3).to.have.property("refid", refm3.refid);
                     expect(aa.map.prop3).to.have.property("desc", refm3.desc);
-
-
-                    console.log(JSON.stringify(aa.map));
                 });
 
                 it("<text, Array<single-ref>> Map (Object) is saved in Database and retrieved as Object", async () => {
