@@ -118,7 +118,7 @@ class Schema {
     
         return null;
     }
-    static async simpleComplexToCassandra(simpleType:Array|Set|Class<Map>|"map", ofType:String|Number|Boolean|Date|Buffer|string):"list"|"set"|"map"|null{
+    static async simpleComplexToCassandra(simpleType:Array|Set|Class<Map>|"map", ofType:String|Number|Boolean|Date|Buffer|string, _client):"list"|"set"|"map"|null{
 
         if(simpleType.__proto__ && simpleType.__proto__.name === "Proxy" && simpleType.name === "Map"){
             if(!Array.isArray(ofType) || ! ofType.length === 2){
@@ -132,7 +132,7 @@ class Schema {
                 const makeTypeDef = (str) => `<${str}>`;
 
                 if(valType.constructor && valType.constructor.name === "Schema"){
-                    const udt = await valType.createOrGetUDT();
+                    const udt = await valType.createOrGetUDT(_client);
                     resolve({
                         type: "map",
                         typeDef: makeTypeDef(`${Schema.primitiveToCassandra(keyType)},${udt}`)
@@ -180,7 +180,7 @@ class Schema {
                             else{
                                 const scomValOfType = valType[0];
     
-                                const simpCompType = await Schema.simpleComplexToCassandra(Array, scomValOfType);
+                                const simpCompType = await Schema.simpleComplexToCassandra(Array, scomValOfType, _client);
                                 if(simpCompType){
                                     resolve({
                                         type: "map",
@@ -222,7 +222,7 @@ class Schema {
                             }
                         }
                         else{
-                            const simpCompVal = await Schema.simpleComplexToCassandra(valType);
+                            const simpCompVal = await Schema.simpleComplexToCassandra(valType, undefined, _client);
                             if(simpCompVal){
                                 resolve({
                                     type: "map",
@@ -329,7 +329,7 @@ class Schema {
         });
         return ret;
     }
-    async getSchemaUDTDescription(){
+    async getSchemaUDTDescription(_client){
         const desc = this.getSchemaDescription();
 
         let fields = {};
@@ -341,7 +341,7 @@ class Schema {
                     let type = Schema.primitiveToCassandra(sf[_k].type);
 
                     if(!type){
-                        const complexType = await Schema.simpleComplexToCassandra(sf[_k].type, sf[_k].of);
+                        const complexType = await Schema.simpleComplexToCassandra(sf[_k].type, sf[_k].of, _client);
                         if(!complexType){
                             throw new Error("Could not decode Type.");
                         }
@@ -379,7 +379,7 @@ class Schema {
 
         const name = `${this.options.name}_udt`;
 
-        const thisUDT = await this.getSchemaUDTDescription();
+        const thisUDT = await this.getSchemaUDTDescription(_client);
         
         const udtBuilder = new UDTBuilder(_client);
 
@@ -682,7 +682,7 @@ class Schema {
 
             const makeField = async (field, key) => {
                 const sfPrimitiveType = Schema.primitiveToCassandra(field.type);
-                const sfSimpleComplexType = await Schema.simpleComplexToCassandra(field.type, field.of);
+                const sfSimpleComplexType = await Schema.simpleComplexToCassandra(field.type, field.of, _client);
 
                 let cf = {};
 
