@@ -754,7 +754,24 @@ class Schema {
                                 });
                             }
                             else{
-                                const reftype = lodashGet(refschema.schema, `${refkey[0]}.type`);
+                                const findRefType = (_refschema) => {
+                                    const refschemaRefKeyProp = lodashGet(_refschema.schema, refkey[0]);
+                                    if(
+                                        refschemaRefKeyProp &&
+                                        refschemaRefKeyProp.hasOwnProperty("ref") &&
+                                        typeof refschemaRefKeyProp.ref === "string"
+                                    ){
+                                        return findRefType(cadoose().schemas[refschemaRefKeyProp.ref]);
+                                    }
+                                    
+                                    if(refschemaRefKeyProp.hasOwnProperty("type")){
+                                        return refschemaRefKeyProp.type;
+                                    }
+
+                                    throw new Error("Could not find type of referenced Key-Property in referenced Schema.");
+                                };
+                                const reftype = findRefType(refschema);
+
                                 cf = await makeField({
                                     type: reftype
                                 }, _key);
