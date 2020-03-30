@@ -19,17 +19,22 @@ class ProxyModelAPI extends Proxy{
             const _bridgeHandler = bridge;;
             const _instObj = instObj;
 
-            const obj = Object.assign(function(instVals){
-                if(typeof(instVals) === "object"){
+            const modelFn = function (instVals) {
+                if (typeof instVals === "object") {
                     Object.keys(_schemaDesc).forEach(k => {
-                        if(instVals.hasOwnProperty(k)){
+                        if (instVals.hasOwnProperty(k) && instVals[k] !== undefined) {
                             this[k] = instVals[k];
                         }
                     });
-
+        
                     return new ProxyModelAPI(_modelname, _schema, _bridgeHandler, this);
                 }
-            }, _instObj || {});
+            };
+            Object.defineProperty(modelFn, "name",{
+                value: undefined,
+                configurable: true,
+            });
+            const obj = Object.assign(modelFn, _instObj || {});
 
             Object.defineProperty(obj, "__$modelName", {
                 enumerable: false,
@@ -58,7 +63,7 @@ class ProxyModelAPI extends Proxy{
                     return (() => {
                         let ret = null;
                         Object.keys(_schemaDesc).forEach(k => {
-                            if(this.hasOwnProperty(k)){
+                            if(this.hasOwnProperty(k) && this[k] !== undefined){
                                 if(ret == null){
                                     ret = {
                                         [k]: this[k]
