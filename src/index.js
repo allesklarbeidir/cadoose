@@ -55,6 +55,10 @@ class Cadoose {
         this.ormOptions = ormOptions;
 
         this._directClient = new cql.Client(clientOptions);
+
+        this._directClient.on("hostDown", (...args) => {
+            console.log(`HOST DOWN: ${JSON.stringify(args)}`);
+        });
     }
 
     async syncModel(model:FusedModelType){
