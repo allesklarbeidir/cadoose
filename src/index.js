@@ -128,6 +128,17 @@ class Cadoose {
     }
 
     async _undeferModel(modelName:string, modelSchema:Schema, syncModel:bool, forceSync:bool){
+        if(
+            this._defered[modelName] &&
+            this._defered[modelName].loaded === true &&
+            (this._defered[modelName].synced || !syncModel) &&
+            this.models[modelName] &&
+            this.models[modelName]["__loaded"] === true
+        ){
+            return this.models[modelName];
+        }
+
+
         const LoadedModel = await this.loadSchema(modelName, modelSchema);
         this._defered[modelName].loaded = true;
 
