@@ -1374,8 +1374,8 @@ expand-brackets@^2.1.4:
     to-regex "^3.0.1"
 
 express-cassandra@allesklarbeidir/express-cassandra#ensure-connection:
-  version "2.4.0"
-  resolved "https://codeload.github.com/allesklarbeidir/express-cassandra/tar.gz/24edd6b746c54bbfa49c4c14783c376b0e73e9af"
+  version "2.4.1"
+  resolved "https://codeload.github.com/allesklarbeidir/express-cassandra/tar.gz/fae474f4cc62f62ce944cea2a85eaf57d776cd00"
   dependencies:
     JSONStream "^1.3.1"
     async "^1.5.2"
