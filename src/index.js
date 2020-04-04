@@ -236,6 +236,7 @@ class CadooseProxy extends Proxy {
         super(((_expressCassandra) => {
             if(CADOOSE_INSTANCE === null){
                 CADOOSE_INSTANCE = new Cadoose(_expressCassandra, clientOptions, ormOptions);
+                console.log("INSTANTIATED NEW CADOOSE_INSTANCE");
             }
             return _expressCassandra;
         })(ExpressCassandra.createClient({
